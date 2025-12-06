@@ -22,6 +22,13 @@
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'bounce-slight': 'bounce 0.5s infinite',
                         'spin-slow': 'spin 3s linear infinite',
+                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0)' },
+                            '100%': { transform: 'scale(1)' },
+                        }
                     }
                 }
             }
@@ -140,6 +147,10 @@
 
         .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
         @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+        
+        /* Chat Button Hover */
+        .emoji-btn { transition: transform 0.1s; }
+        .emoji-btn:active { transform: scale(0.8); }
     </style>
 </head>
 <body class="h-[100dvh] flex flex-col text-slate-700">
@@ -228,9 +239,27 @@
                 <div class="bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 aspect-square mb-2">
                     <div id="playerBoard" class="board-container small-board w-full h-full bg-sea-100 p-1 rounded-lg"></div>
                 </div>
-                <div class="flex-1 bg-white rounded-3xl shadow p-2 flex flex-col justify-center items-center gap-1 border-4 border-sea-100">
-                     <div class="text-slate-400 text-xs font-bold uppercase">vs</div>
-                     <div id="opponentNameDisplay" class="text-lg text-sea-700 font-bold">Opponent</div>
+                
+                <!-- NEW: Chat & Status Module -->
+                <div class="flex-1 bg-white rounded-3xl shadow p-2 flex flex-col gap-2 border-4 border-sea-100 overflow-hidden relative">
+                    <!-- Opponent Status / Chat Bubble -->
+                    <div class="flex-1 flex flex-col justify-center items-center bg-sea-100 rounded-xl p-2 w-full relative">
+                        <div class="text-slate-400 text-xs font-bold uppercase mb-1">Opponent Says:</div>
+                        <div id="chatDisplay" class="text-4xl">...</div>
+                        <div id="opponentNameDisplay" class="text-xs text-sea-700 font-bold mt-1">Waiting...</div>
+                    </div>
+                    
+                    <!-- My Emoji Keyboard -->
+                    <div class="grid grid-cols-4 gap-1 w-full">
+                        <button onclick="sendEmoji('👋')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">👋</button>
+                        <button onclick="sendEmoji('😂')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😂</button>
+                        <button onclick="sendEmoji('😎')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😎</button>
+                        <button onclick="sendEmoji('😱')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😱</button>
+                        <button onclick="sendEmoji('😡')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😡</button>
+                        <button onclick="sendEmoji('🤔')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">🤔</button>
+                        <button onclick="sendEmoji('💣')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">💣</button>
+                        <button onclick="sendEmoji('🏳️')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">🏳️</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -259,7 +288,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.9 (Music & Text)";
+        const APP_VERSION = "v1.10 (Emoji Chat)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
@@ -378,6 +407,9 @@
         let enemyShots = [];
         let sunkShipsLog = new Set(); 
         
+        // --- NEW CHAT STATE ---
+        let lastChatTime = 0;
+        
         // --- NEW LOCK VARIABLE ---
         let isProcessingTurn = false;
 
@@ -495,6 +527,7 @@
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
+            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
@@ -511,6 +544,7 @@
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
+            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
@@ -601,7 +635,33 @@
                     }
                 }
                 
+                // --- CHAT LISTENER ---
+                if (data.chat && data.chat.ts > lastChatTime) {
+                    lastChatTime = data.chat.ts;
+                    if (data.chat.senderUid !== user.uid) {
+                        const display = document.getElementById('chatDisplay');
+                        display.innerText = data.chat.emoji;
+                        display.classList.remove('animate-pop-in');
+                        void display.offsetWidth; // Trigger reflow
+                        display.classList.add('animate-pop-in');
+                    }
+                }
+                
                 if (data.lastAction) updateLog(`🔔 ${data.lastAction}`);
+            });
+        }
+        
+        // --- CHAT FUNCTION ---
+        window.sendEmoji = async function(emoji) {
+            if(!currentRoomId) return;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            // Simple update to "chat" field
+            await updateDoc(roomRef, {
+                chat: {
+                    senderUid: user.uid,
+                    emoji: emoji,
+                    ts: Date.now()
+                }
             });
         }
         
