@@ -163,10 +163,16 @@
         <!-- Setup Screen -->
         <div id="setupScreen" class="hidden h-full w-full flex flex-col md:flex-row gap-2 justify-center items-stretch">
             <!-- Sidebar -->
-            <div class="w-full md:w-1/3 flex flex-col gap-2 bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0 h-auto md:h-full overflow-visible">
-                <h3 class="text-sm md:text-lg font-bold text-sea-700 text-center">My Fleet</h3>
-                <div class="text-xs text-center text-slate-500 mb-1">Tap board to place/rotate.</div>
-                <div id="shipList" class="flex flex-wrap justify-center gap-2 md:flex-col md:justify-start md:overflow-y-auto w-full"></div>
+            <div class="w-full md:w-1/3 flex flex-col gap-2 bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0 h-auto md:h-full overflow-visible z-10">
+                <div class="flex justify-between items-center md:justify-center">
+                    <h3 class="text-sm md:text-lg font-bold text-sea-700 text-center">My Fleet</h3>
+                    <div class="text-[10px] text-slate-500 md:hidden">Scroll ➤</div>
+                </div>
+                <div class="text-xs text-center text-slate-500 mb-1 hidden md:block">Tap board to place/rotate.</div>
+                
+                <!-- MOBILE: Horizontal Scroll / DESKTOP: Vertical List -->
+                <div id="shipList" class="flex flex-nowrap overflow-x-auto gap-2 pb-1 md:pb-0 md:flex-col md:flex-wrap md:justify-start md:overflow-y-auto w-full no-scrollbar"></div>
+                
                 <div class="flex gap-2 mt-2 shrink-0">
                     <button onclick="randomizeShips()" class="flex-1 py-2 bg-blue-500 text-white font-bold rounded-xl shadow active:scale-95 text-xs md:text-sm">Random</button>
                     <button onclick="resetSetup()" class="px-3 py-2 bg-red-400 text-white font-bold rounded-xl shadow active:scale-95"><i class="fa-solid fa-trash"></i></button>
@@ -289,7 +295,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.25 (ExpandedChat+Sound)";
+        const APP_VERSION = "v1.27 (FixSetupClick)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -474,11 +480,11 @@
             FLEET_TYPES.forEach(ship => {
                 const isPlaced = placedShips.find(s => s.id === ship.id);
                 const div = document.createElement('div');
-                div.className = `ship-item w-full p-2 rounded-xl bg-sea-100 border border-sea-300 cursor-pointer flex justify-between items-center ${isPlaced ? 'placed' : ''} ${selectedShipType?.id === ship.id ? 'selected' : ''}`;
+                div.className = `ship-item w-36 md:w-full shrink-0 p-2 rounded-xl bg-sea-100 border border-sea-300 cursor-pointer flex justify-between items-center ${isPlaced ? 'placed' : ''} ${selectedShipType?.id === ship.id ? 'selected' : ''}`;
                 if (!isPlaced) div.onclick = () => selectShipType(ship);
                 let blocks = '';
                 for(let i=0; i<ship.size; i++) blocks += `<div class="w-4 h-4 rounded ${ship.color} border border-white"></div>`;
-                div.innerHTML = `<span class="font-bold text-sm">${ship.name} (${ship.size})</span><div class="flex gap-1">${blocks}</div>`;
+                div.innerHTML = `<span class="font-bold text-sm truncate mr-1">${ship.name} (${ship.size})</span><div class="flex gap-1">${blocks}</div>`;
                 list.appendChild(div);
             });
             checkStartButton();
@@ -714,13 +720,17 @@
                 const data = docSnap.data();
                 
                 // If it's my turn, unlock the board
-                if (data.currentTurn === user.uid) {
-                    isProcessingTurn = false;
-                    // FIX 5: Remove disabled visual
-                    document.querySelectorAll('.board-container').forEach(el => el.classList.remove('grid-disabled'));
+                if (data.status === 'playing') {
+                     const enemyBoards = [document.getElementById('enemyBoard'), document.getElementById('enemyBoardDesktop')];
+                     if (data.currentTurn === user.uid) {
+                         isProcessingTurn = false; // Reset lock for new turn
+                         enemyBoards.forEach(b => b?.classList.remove('grid-disabled'));
+                     } else {
+                         enemyBoards.forEach(b => b?.classList.add('grid-disabled'));
+                     }
                 } else {
-                    // Lock board if not my turn
-                    document.querySelectorAll('.board-container').forEach(el => el.classList.add('grid-disabled'));
+                     // Setup phase: Ensure setup boards are NOT disabled
+                     document.querySelectorAll('.board-container').forEach(el => el.classList.remove('grid-disabled'));
                 }
 
                 if (data.host?.ready && data.guest?.ready && data.status !== 'playing' && data.status !== 'finished') {
