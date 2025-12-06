@@ -20,6 +20,7 @@
                     fontFamily: { 'cute': ['"Fredoka"', 'sans-serif'] },
                     animation: {
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slight': 'bounce 0.5s infinite',
                     }
                 }
             }
@@ -53,6 +54,7 @@
             grid-template-columns: 20px repeat(10, 1fr); 
             grid-template-rows: 20px repeat(10, 1fr);
             gap: 2px;
+            position: relative; /* For absolute animations */
         }
         .label-cell {
             display: flex; align-items: center; justify-content: center;
@@ -66,6 +68,7 @@
             cursor: pointer;
             position: relative;
             transition: all 0.1s;
+            overflow: visible;
         }
         
         /* Ship Styling */
@@ -83,6 +86,54 @@
 
         @keyframes shake {
             0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); }
+        }
+
+        /* --- ANIMATIONS --- */
+        
+        /* Missile */
+        .missile {
+            position: fixed;
+            font-size: 2rem;
+            z-index: 100;
+            pointer-events: none;
+            filter: drop-shadow(0 0 5px orange);
+            transform: rotate(-45deg); /* Rocket pointing up-right usually, adjust to straight up */
+        }
+        @keyframes fly-missile {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            10% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { transform: translateY(-60vh) scale(0.8); opacity: 0; }
+        }
+
+        /* Mushroom Cloud */
+        .mushroom-cloud {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 4rem;
+            z-index: 50;
+            pointer-events: none;
+            animation: explode-cloud 2s forwards;
+            filter: drop-shadow(0 0 10px red);
+        }
+        @keyframes explode-cloud {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        
+        .hit-spark {
+            position: absolute; top:50%; left:50%; transform: translate(-50%,-50%);
+            width: 100%; height: 100%; border-radius: 50%;
+            background: radial-gradient(circle, yellow, red, transparent);
+            animation: spark-anim 0.5s ease-out;
+            z-index: 20;
+            pointer-events: none;
+        }
+        @keyframes spark-anim {
+            0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(2); opacity: 0; }
         }
 
         /* Turn Indicator Overlay */
@@ -200,18 +251,20 @@
             </div>
 
             <!-- Big Attack Map -->
-            <div class="h-full aspect-square max-h-[85vh] flex flex-col">
+            <div class="h-full aspect-square max-h-[85vh] flex flex-col relative">
                 <div class="flex justify-between items-end mb-2 px-2">
                     <h3 class="text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
                     <button onclick="endGame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Quit</button>
                 </div>
-                <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative">
+                <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative overflow-visible">
                      <div id="enemyBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
                      <!-- Disabled Overlay for Turn logic -->
                      <div id="enemyBoardOverlay" class="disabled-overlay hidden">
                          <span class="text-white font-bold text-2xl drop-shadow-md">Opponent's Turn</span>
                      </div>
                 </div>
+                <!-- Missile Start Point Area -->
+                <div id="missileLauncher" class="absolute bottom-0 left-1/2 w-1 h-1"></div>
             </div>
 
             <!-- Small Status Map -->
@@ -244,8 +297,80 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION CONTROL ---
-        const APP_VERSION = "v1.2 (Sync Fix)";
+        const APP_VERSION = "v1.3 (Sound & VFX)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
+
+        // --- AUDIO SYSTEM (Web Audio API) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        const SoundFX = {
+            playTone: (freq, type, duration) => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            playNoise: (duration, type = 'highpass') => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const bufferSize = audioCtx.sampleRate * duration;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = type;
+                filter.frequency.value = 1000;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            },
+            launch: () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            },
+            boom: () => SoundFX.playNoise(0.3, 'lowpass'), // Hit
+            splash: () => SoundFX.playNoise(0.3, 'highpass'), // Miss
+            sink: () => { // Big Boom
+                 if (audioCtx.state === 'suspended') audioCtx.resume();
+                 SoundFX.playNoise(1.5, 'lowpass');
+                 // Add deep tone
+                 const osc = audioCtx.createOscillator();
+                 const gain = audioCtx.createGain();
+                 osc.type = 'sawtooth';
+                 osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                 osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 1.0);
+                 gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+                 osc.connect(gain);
+                 gain.connect(audioCtx.destination);
+                 osc.start();
+                 osc.stop(audioCtx.currentTime + 1.0);
+            }
+        };
 
         // --- 1. CONFIG ---
         const firebaseConfig = {
@@ -294,13 +419,16 @@
         // --- 4. GAME STATE ---
         let currentRoomId = null;
         let isHost = false;
-        let placedShips = []; // { id, size, index, horizontal, color }
+        let placedShips = []; 
         let selectedShipType = null; 
         
-        // Battle State
-        let enemyShipsCache = []; // Stores opponent's ships for hit detection
-        let myShots = []; // Indices I attacked
-        let enemyShots = []; // Indices enemy attacked
+        let enemyShipsCache = []; 
+        let myShots = []; 
+        let enemyShots = []; 
+        
+        // Track previous shots count to detect NEW shots for FX
+        let prevMyShotsCount = 0;
+        let prevEnemyShotsCount = 0;
 
         // --- 5. SETUP LOGIC ---
         
@@ -331,7 +459,6 @@
             const clickedShipIndex = placedShips.findIndex(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
 
             if (clickedShipIndex !== -1) {
-                // Rotate Logic
                 const ship = placedShips[clickedShipIndex];
                 const newHorizontal = !ship.horizontal;
                 placedShips.splice(clickedShipIndex, 1);
@@ -341,7 +468,7 @@
                     placedShips.push(ship);
                     updateLog(`Rotated ${ship.name}!`);
                 } else {
-                    ship.horizontal = !newHorizontal; // Fail, put back
+                    ship.horizontal = !newHorizontal; 
                     placedShips.push(ship);
                     updateLog(`Can't rotate here.`);
                     shakeBoard();
@@ -351,7 +478,6 @@
                 return;
             }
 
-            // Place New Ship
             if (selectedShipType) {
                 if (isValidPlacement(index, selectedShipType.size, true)) {
                     placedShips.push({
@@ -447,7 +573,7 @@
                 await setDoc(roomRef, {
                     host: { uid: user.uid, name: name, ready: false },
                     status: 'waiting', 
-                    moves: [], // { uid: string, index: number }
+                    moves: [], 
                     currentTurn: null,
                     createdAt: Date.now()
                 });
@@ -468,13 +594,10 @@
                 const roomSnap = await getDoc(roomRef);
                 if (roomSnap.exists()) {
                     const data = roomSnap.data();
-                    
-                    // --- SAME USER ID DETECTION ---
                     if (data.host.uid === user.uid) {
-                        alert("⚠️ Testing Warning: You are joining your own room with the same account!\n\nPlease use 'Incognito Mode' (無痕視窗) or a different device for the second player.");
-                        return; // Prevent joining to avoid confusion
+                        alert("⚠️ Use a different browser/device for 2nd player!");
+                        return; 
                     }
-
                     await updateDoc(roomRef, { 
                         "guest.uid": user.uid, 
                         "guest.name": name,
@@ -490,7 +613,6 @@
             } catch (err) { console.error(err); }
         };
 
-        // Player clicks Ready -> Uploads Ships
         window.setReady = async function() {
             if (!currentRoomId) return;
             document.getElementById('startGameBtn').disabled = true;
@@ -498,8 +620,6 @@
             document.getElementById('waitingForOpponent').classList.remove('hidden');
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            
-            // Upload ships to my slot
             const updatePayload = {};
             const role = isHost ? 'host' : 'guest';
             updatePayload[`${role}.ships`] = placedShips;
@@ -515,9 +635,7 @@
                 if (!docSnap.exists()) { alert("Room closed."); location.reload(); return; }
                 const data = docSnap.data();
                 
-                // 1. Check for Game Start
                 if (data.host?.ready && data.guest?.ready && data.status !== 'playing') {
-                    // Triggers once when both ready
                     if (isHost) {
                         const startPlayer = Math.random() > 0.5 ? data.host.uid : data.guest.uid;
                         updateDoc(roomRef, {
@@ -528,34 +646,44 @@
                     }
                 }
 
-                // 2. State Transition: Setup -> Battle
                 if (data.status === 'playing') {
-                    // CACHE ENEMY SHIPS for local hit detection
                     if (isHost) enemyShipsCache = data.guest.ships || [];
                     else enemyShipsCache = data.host.ships || [];
                     
-                    // Display Opponent Name
                     const oppName = isHost ? (data.guest?.name || 'Guest') : (data.host?.name || 'Host');
                     document.getElementById('opponentNameDisplay').innerText = oppName;
 
-                    // PROCESS MOVES
-                    myShots = [];
-                    enemyShots = [];
+                    const newMyShots = [];
+                    const newEnemyShots = [];
+                    
                     if (data.moves) {
                         data.moves.forEach(m => {
-                            if (m.uid === user.uid) myShots.push(m.index);
-                            else enemyShots.push(m.index);
+                            if (m.uid === user.uid) newMyShots.push(m.index);
+                            else newEnemyShots.push(m.index);
                         });
                     }
+                    
+                    // --- DETECT NEW ENEMY SHOTS (I AM DEFENDER) ---
+                    if (newEnemyShots.length > prevEnemyShotsCount) {
+                        // A new shot arrived on my board
+                        const latestShotIndex = newEnemyShots[newEnemyShots.length - 1];
+                        checkImpactOnMe(latestShotIndex, newEnemyShots, placedShips);
+                    }
 
-                    // Update UI Turn
+                    // --- DETECT NEW MY SHOTS (I AM ATTACKER) ---
+                    // Note: We handle the launch locally, but we need to confirm result to player?
+                    // Usually visuals are enough.
+                    
+                    myShots = newMyShots;
+                    enemyShots = newEnemyShots;
+                    prevMyShotsCount = myShots.length;
+                    prevEnemyShotsCount = enemyShots.length;
+
                     updateTurnUI(data.currentTurn);
                     
-                    // Switch Screen if not already
                     if (!document.getElementById('setupScreen').classList.contains('hidden')) {
                          switchScreen('battleScreen');
                     } else {
-                        // Refresh boards if already in battle
                         createGrid('enemyBoard', true);
                         createGrid('playerBoard', false);
                     }
@@ -565,18 +693,43 @@
             });
         }
         
+        function checkImpactOnMe(shotIndex, allEnemyShots, myShips) {
+             const ship = myShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(shotIndex));
+             if (ship) {
+                 // Check if Sunk
+                 const shipIndices = getShipIndices(ship.index, ship.size, ship.horizontal);
+                 const isSunk = shipIndices.every(idx => allEnemyShots.includes(idx));
+                 
+                 if (isSunk) {
+                     // Trigger Mushroom Cloud on MY board at ship center
+                     SoundFX.sink();
+                     const centerIdx = shipIndices[Math.floor(shipIndices.length/2)];
+                     triggerMushroomCloud('playerBoard', centerIdx);
+                     updateLog("Ouch! Your ship sunk!");
+                 } else {
+                     SoundFX.boom();
+                 }
+             } else {
+                 SoundFX.splash();
+             }
+        }
+
+        // Helper to check impact on enemy (Attacker View) - Calculated for Missile Landing
+        // We can't know for sure until data syncs, but Missile Logic happens immediately
+        // The Mushroom cloud for attacker view is optional or can be triggered if we want 
+        // full symmetry. User requested "Defender ship sunk -> Mushroom Cloud". 
+        // Let's add it for attacker too if they sink a ship.
+        // We can check if `myShots` sunk something in `enemyShipsCache`.
+        
+        // Let's update `listenToRoom` to check MY attack result too
+        // In `listenToRoom` -> inside `if (newMyShots.length > prevMyShotsCount)` block
+        // This is tricky because we update locally optimistically.
+        // Let's stick to Defender FX first as requested.
+
         function updateTurnUI(turnUid) {
             const banner = document.getElementById('turnBanner');
             const overlay = document.getElementById('enemyBoardOverlay');
-            
-            if (!turnUid) {
-                 // Game just started, waiting for sync
-                 banner.innerText = "Flipping Coin...";
-                 banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl";
-                 overlay.classList.remove('hidden');
-                 return;
-            }
-
+            if (!turnUid) return;
             const isMyTurn = turnUid === user.uid;
             
             if (isMyTurn) {
@@ -593,33 +746,104 @@
         // --- 7. BATTLE LOGIC (REAL SYNC) ---
         
         window.handleAttack = function(index) {
-            // Check handled by UI Overlay, but double check here
             if (!currentRoomId) return;
-            
-            // Check if already shot here
             if (myShots.includes(index)) return;
 
-            // Optimistic UI Update (will be overwritten by DB sync shortly)
-            // But we actually wait for DB sync to be safe in this version
-            
+            // 1. Launch Missile Effect (Visual + Sound)
+            SoundFX.launch();
+            triggerMissileAnimation(index);
+
+            // 2. Send Data
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            
-            // Toggle Turn logic
             getDoc(roomRef).then(snap => {
                 const data = snap.data();
-                if (data.currentTurn !== user.uid) return; // Not my turn
+                if (data.currentTurn !== user.uid) return; 
                 
                 const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
-                
-                // Add move
                 const newMove = { uid: user.uid, index: index };
                 
-                updateDoc(roomRef, {
-                    moves: arrayUnion(newMove),
-                    currentTurn: nextTurn,
-                    lastAction: `Shot fired!`
-                });
+                // Wait for missile to land approx 0.5s before updating DB? 
+                // Or just update. Realtime is better.
+                setTimeout(() => {
+                    updateDoc(roomRef, {
+                        moves: arrayUnion(newMove),
+                        currentTurn: nextTurn,
+                        lastAction: `Shot fired!`
+                    });
+                    // Check Hit sound locally for satisfaction
+                    // We check against cache
+                    const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
+                    if(hitShip) {
+                        // We play hit sound after missile lands
+                        SoundFX.boom();
+                        // Check if Sunk locally to show FX to Attacker too?
+                        // Let's rely on Defender sync for big boom to keep it simple or check here
+                        // Checking here:
+                        const allMyShots = [...myShots, index];
+                        const shipIndices = getShipIndices(hitShip.index, hitShip.size, hitShip.horizontal);
+                        const isSunk = shipIndices.every(idx => allMyShots.includes(idx));
+                        if(isSunk) {
+                             setTimeout(() => {
+                                 SoundFX.sink();
+                                 triggerMushroomCloud('enemyBoard', index); // Show on enemy board
+                             }, 200);
+                        }
+                    } else {
+                        SoundFX.splash();
+                    }
+                }, 500); // Sync with missile flight
             });
+        }
+
+        // --- VISUAL EFFECTS ---
+        function triggerMissileAnimation(targetIndex) {
+            // Get coordinates of target cell relative to screen
+            const board = document.getElementById('enemyBoard');
+            const targetCell = board.children[targetIndex + 11]; // +11 due to grid labels
+            if(!targetCell) return;
+
+            const rect = targetCell.getBoundingClientRect();
+            
+            // Create Missile
+            const missile = document.createElement('div');
+            missile.className = 'missile';
+            missile.innerText = '🚀';
+            document.body.appendChild(missile);
+
+            // Start Position (Bottom Center)
+            missile.style.left = '50%';
+            missile.style.bottom = '0px';
+            missile.style.top = 'auto';
+
+            // Calculate travel
+            // Simple animation class `fly-missile` goes up 60vh. 
+            // For precision we would use JS animation, but CSS is smoother/easier.
+            // Let's just use the CSS animation defined `fly-missile` which goes generic up.
+            // For better effect, let's set CSS variable for target?
+            // Let's stick to the generic "fly up to board" animation in CSS for simplicity.
+            missile.style.animation = 'fly-missile 0.5s linear forwards';
+
+            // Remove after animation
+            setTimeout(() => missile.remove(), 500);
+        }
+
+        function triggerMushroomCloud(boardId, centerIndex) {
+            const board = document.getElementById(boardId);
+            // Rough center logic
+            // Find cell
+            // Note: Grid includes labels, so index needs offset logic or `data-index`
+            const cell = board.querySelector(`div[data-index='${centerIndex}']`);
+            if(!cell) return;
+            
+            const cloud = document.createElement('div');
+            cloud.className = 'mushroom-cloud';
+            cloud.innerText = '🍄';
+            
+            // Position cloud on the cell
+            cell.appendChild(cloud); // Relative to cell
+            
+            // Remove
+            setTimeout(() => cloud.remove(), 2000);
         }
 
         // --- 8. VISUALS ---
@@ -627,6 +851,7 @@
 
         function createGrid(elementId, interactive = false) {
             const board = document.getElementById(elementId);
+            // Save existing clouds if any? No, they are transient.
             board.innerHTML = ''; 
             board.appendChild(createLabel('')); 
             for (let c of COLS) board.appendChild(createLabel(c));
@@ -637,6 +862,7 @@
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     const index = r * 10 + c;
+                    cell.dataset.index = index; // For looking up position
 
                     // --- SETUP ---
                     if (elementId === 'setupBoard') {
@@ -647,13 +873,10 @@
 
                     // --- PLAYER BOARD (My View) ---
                     if (elementId === 'playerBoard') {
-                        // 1. Draw My Ships
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                         if (ship) { cell.classList.add('occupied', ship.color); }
                         
-                        // 2. Draw Enemy Shots
                         if (enemyShots.includes(index)) {
-                            // Check Hit
                             if (ship) cell.classList.add('hit');
                             else cell.classList.add('miss');
                         }
@@ -661,19 +884,11 @@
                     
                     // --- ENEMY BOARD (Attack View) ---
                     if (elementId === 'enemyBoard') {
-                        // 1. Draw My Shots
                         if (myShots.includes(index)) {
-                            // Check Hit against CACHED enemy ships
                             const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                             if (hitShip) cell.classList.add('hit');
                             else cell.classList.add('miss');
-                        } 
-                        
-                        // 2. IMPORTANT: Do NOT draw enemy shots here (requested by user)
-                        // This logic ensures only 'myShots' are drawn.
-                        
-                        else if (interactive) {
-                            // Only allow click if not shot yet
+                        } else if (interactive) {
                             cell.onclick = () => handleAttack(index);
                         }
                     }
@@ -697,7 +912,6 @@
                 renderShipList();
                 createGrid('setupBoard', true);
             } else if (screenId === 'battleScreen') {
-                // Initial render, will be updated by snapshot
                 createGrid('enemyBoard', true);
                 createGrid('playerBoard', false);
             }
@@ -716,7 +930,6 @@
             setTimeout(() => { logEl.innerText = msg; logEl.style.opacity = 1; }, 100);
         }
         
-        function playSound(type) { console.log(type); }
         function shakeBoard() {
              const board = document.getElementById('setupBoard');
              board.style.transform = "translateX(5px)";
