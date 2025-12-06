@@ -235,9 +235,10 @@
             </div>
         </div>
         
+        <!-- Game Over Modal (Removed bounce animation) -->
         <div id="gameOverModal" class="hidden absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md overflow-hidden">
             <div id="confettiContainer" class="absolute inset-0 pointer-events-none"></div>
-            <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md w-full animate-bounce-slight border-4 border-yellow-400 relative z-10">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border-4 border-yellow-400 relative z-10">
                 <div id="winnerText" class="text-6xl mb-4">🏆</div>
                 <h2 id="gameOverTitle" class="text-5xl font-bold text-sea-700 mb-2">YOU WIN!</h2>
                 <p id="gameOverSubtitle" class="text-xl text-slate-500 mb-8 font-bold">All enemy ships destroyed!</p>
@@ -258,7 +259,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.8 (Turn Fix & Indep FX)";
+        const APP_VERSION = "v1.9 (Music & Text)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
@@ -309,6 +310,21 @@
                  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
                  osc.connect(gain); gain.connect(audioCtx.destination);
                  osc.start(); osc.stop(audioCtx.currentTime + 1.5);
+            },
+            victory: () => { // NEW: Victory Music
+                SoundFX.resume();
+                const now = audioCtx.currentTime;
+                // C major arpeggio: C4, E4, G4, C5
+                [261.63, 329.63, 392.00, 523.25].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.1, now + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.4);
+                });
             }
         };
 
@@ -760,6 +776,9 @@
             confetti.innerHTML = ''; 
 
             if (winnerUid === user.uid) {
+                // NEW: Play Victory Music
+                SoundFX.victory();
+                
                 title.innerText = "VICTORY!";
                 title.className = "text-5xl font-bold text-yellow-500 mb-2 drop-shadow-lg";
                 sub.innerText = "You sank the entire fleet!";
@@ -774,9 +793,9 @@
                     confetti.appendChild(el);
                 }
             } else {
-                title.innerText = "DEFEAT";
+                title.innerText = "Nice Try!";
                 title.className = "text-5xl font-bold text-slate-600 mb-2";
-                sub.innerText = "Your fleet is at the bottom of the sea.";
+                sub.innerText = "Try again next time!";
                 icon.innerText = "🏳️";
                 for(let i=0; i<40; i++) {
                     const el = document.createElement('div');
