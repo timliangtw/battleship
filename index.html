@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kids Sea Battle</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts: Fredoka One (Cute & Round) -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
     
     <script>
@@ -16,20 +13,11 @@
             theme: {
                 extend: {
                     colors: {
-                        sea: {
-                            100: '#E0F7FA', // Sky/Lightest
-                            300: '#4DD0E1', // Shallow water
-                            500: '#00BCD4', // Deep water
-                            700: '#0097A7', // Darker water
-                        },
-                        sand: '#FFF9C4',
-                        ship: '#FFB74D', // Orange ships
-                        hit: '#EF5350',   // Soft Red
-                        miss: '#FFFFFF',  // White foam
+                        sea: { 100:'#E0F7FA', 300:'#4DD0E1', 500:'#00BCD4', 700:'#0097A7' },
+                        ship: { DEFAULT: '#FFB74D', active: '#FF9800' }, 
+                        hit: '#EF5350', miss: '#FFFFFF'
                     },
-                    fontFamily: {
-                        'cute': ['"Fredoka"', 'sans-serif'],
-                    }
+                    fontFamily: { 'cute': ['"Fredoka"', 'sans-serif'] }
                 }
             }
         }
@@ -46,122 +34,83 @@
         /* --- Landscape Lock --- */
         #orientation-lock {
             display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #00BCD4;
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            text-align: center;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #00BCD4; z-index: 9999;
+            flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center;
         }
-
         @media screen and (orientation: portrait) {
-            #orientation-lock {
-                display: flex;
-            }
-            main {
-                display: none;
-            }
+            #orientation-lock { display: flex; }
+            main { display: none; }
         }
 
         /* --- Grid System --- */
         .board-container {
             display: grid;
-            /* 10 columns + 1 for labels */
             grid-template-columns: 20px repeat(10, 1fr); 
-            /* 10 rows + 1 for labels */
             grid-template-rows: 20px repeat(10, 1fr);
             gap: 2px;
         }
-
-        /* Labels (A-J, 1-10) */
         .label-cell {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            color: #0097A7;
-            font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: #0097A7; font-weight: bold;
         }
-
-        /* Game Cells */
         .grid-cell {
             aspect-ratio: 1;
             background-color: #4DD0E1;
             border: 2px solid #80DEEA;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
             position: relative;
-            transition: transform 0.1s;
-        }
-        .grid-cell:active {
-            transform: scale(0.90);
+            transition: all 0.1s;
         }
         
+        /* Ship Styling */
         .grid-cell.occupied {
             background-color: #FFB74D;
             border-color: #FFA726;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+        }
+        .grid-cell.occupied.preview {
+            background-color: rgba(255, 183, 77, 0.5); /* Ghost preview */
         }
         
-        /* Hit Effect (Boom) */
-        .grid-cell.hit {
-            background-color: #EF5350;
-            animation: shake 0.5s;
-        }
-        .grid-cell.hit::after {
-            content: '💥';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.2rem;
-            /* Adjust size for small screens */
-        }
-
-        /* Miss Effect (Splash) */
-        .grid-cell.miss {
-            background-color: #B2EBF2;
-        }
-        .grid-cell.miss::after {
-            content: '💦';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1rem;
-            opacity: 0.8;
-        }
+        /* Hit/Miss Effects */
+        .grid-cell.hit { background-color: #EF5350; animation: shake 0.5s; }
+        .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; }
+        .grid-cell.miss { background-color: #B2EBF2; }
+        .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; opacity: 0.8; }
 
         @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            20% { transform: translate(-2px, 0px) rotate(1deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            60% { transform: translate(-2px, 1px) rotate(0deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            100% { transform: translate(0, 0) rotate(0deg); }
+            0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); }
         }
 
-        /* Small Board Adjustments */
-        .small-board .grid-cell {
-            border-width: 1px;
-            border-radius: 2px;
+        /* Sidebar Ship Item */
+        .ship-item {
+            transition: all 0.2s;
+            border: 3px solid transparent;
         }
-        .small-board .label-cell {
-            font-size: 0.5rem;
+        .ship-item.selected {
+            background-color: #FFF9C4;
+            border-color: #FF9800;
+            transform: scale(1.05);
         }
-        .small-board .grid-cell.hit::after { font-size: 0.8rem; }
-        .small-board .grid-cell.miss::after { font-size: 0.6rem; }
+        .ship-item.placed {
+            opacity: 0.3;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
 
+        /* Connection Dot */
+        .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
     </style>
 </head>
 <body class="h-screen flex flex-col text-slate-700">
 
-    <!-- Portrait Mode Warning -->
     <div id="orientation-lock">
         <i class="fa-solid fa-mobile-screen-button fa-rotate-270 text-6xl mb-4 animate-bounce"></i>
         <h1 class="text-3xl font-bold">Please Rotate!</h1>
-        <p class="text-xl">Turn your device sideways to play.</p>
     </div>
 
     <!-- Header -->
@@ -170,9 +119,12 @@
             <i class="fa-solid fa-ship text-2xl text-yellow-300"></i>
             <h1 class="text-2xl font-bold tracking-wide text-white drop-shadow-md">Sea Battle</h1>
         </div>
-        <div id="statusText" class="text-xl font-bold bg-white/20 px-4 py-1 rounded-full">
-            Waiting...
+        
+        <div class="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+            <div id="connDot" class="w-3 h-3 rounded-full bg-red-500 transition-colors duration-500"></div>
+            <span id="connText" class="text-sm font-bold">Offline</span>
         </div>
+
         <div class="text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
             Room: <span id="roomId" class="text-yellow-300 font-bold">---</span>
         </div>
@@ -186,43 +138,48 @@
             <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center border-4 border-sea-500">
                 <div class="text-6xl mb-2">⚓️</div>
                 <h2 class="text-4xl font-bold text-sea-700 mb-6">Let's Play!</h2>
-                <input type="text" placeholder="Your Name" class="w-full bg-slate-100 text-sea-700 text-xl font-bold border-2 border-sea-300 rounded-xl p-3 mb-4 focus:outline-none focus:border-sea-500 text-center placeholder-sea-300">
+                <input id="playerNameInput" type="text" placeholder="Your Name" class="w-full bg-slate-100 text-sea-700 text-xl font-bold border-2 border-sea-300 rounded-xl p-3 mb-4 focus:outline-none focus:border-sea-500 text-center placeholder-sea-300">
                 <div class="flex flex-col gap-3">
-                    <button onclick="switchScreen('setupScreen')" class="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-3 px-6 rounded-2xl shadow-lg border-b-4 border-green-700 active:border-b-0 active:translate-y-1">
+                    <button onclick="createRoom()" class="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-3 px-6 rounded-2xl shadow-lg border-b-4 border-green-700 active:border-b-0 active:translate-y-1">
                         Create Room
                     </button>
-                    <button onclick="switchScreen('setupScreen')" class="bg-yellow-400 hover:bg-yellow-500 text-white text-xl font-bold py-3 px-6 rounded-2xl shadow-lg border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1">
-                        Join Room
-                    </button>
+                    <div class="flex gap-2">
+                        <input id="joinRoomId" type="text" placeholder="1234" class="w-24 bg-slate-100 text-center font-bold border-2 border-sea-300 rounded-xl">
+                        <button onclick="joinRoom()" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-white text-xl font-bold py-3 px-6 rounded-2xl shadow-lg border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1">
+                            Join Room
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- 2. Setup Screen -->
         <div id="setupScreen" class="hidden h-full flex gap-4 max-w-6xl mx-auto items-center justify-center">
-            <!-- Left: Tools -->
-            <div class="w-1/3 h-full max-h-[500px] flex flex-col gap-3 bg-white p-4 rounded-3xl shadow-lg border-4 border-sea-200">
-                <h3 class="text-2xl font-bold text-sea-700 text-center mb-2">My Ships</h3>
-                <div class="flex-1 space-y-3 overflow-y-auto pr-2 flex flex-col items-center">
-                    <div class="bg-sea-100 p-2 rounded-xl border-2 border-sea-200 w-full text-center">
-                        <span class="text-sm text-sea-700 font-bold mb-1 block">Carrier (5)</span>
-                        <div class="flex gap-1 justify-center"><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div></div>
-                    </div>
-                    <div class="bg-sea-100 p-2 rounded-xl border-2 border-sea-200 w-full text-center">
-                         <span class="text-sm text-sea-700 font-bold mb-1 block">Battleship (4)</span>
-                        <div class="flex gap-1 justify-center"><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div><div class="w-5 h-5 rounded bg-ship border border-orange-400"></div></div>
-                    </div>
+            <!-- Ship Inventory -->
+            <div class="w-1/3 h-full max-h-[500px] flex flex-col gap-2 bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200">
+                <h3 class="text-xl font-bold text-sea-700 text-center">My Fleet</h3>
+                <div class="text-xs text-center text-slate-500 mb-1">Select ship, then tap board.<br>Tap ship on board to rotate!</div>
+                
+                <div id="shipList" class="flex-1 space-y-2 overflow-y-auto pr-1 flex flex-col items-center">
+                    <!-- JS generated ships -->
                 </div>
-                <button class="w-full py-3 bg-blue-500 text-white text-lg font-bold rounded-xl shadow border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">
-                    Random 🔀
-                </button>
-                <button onclick="switchScreen('battleScreen')" class="w-full py-4 bg-green-500 text-white text-2xl font-bold rounded-xl shadow-lg border-b-4 border-green-700 active:border-b-0 active:translate-y-1 animate-pulse">
-                    GO! ▶
+
+                <div class="flex gap-2">
+                    <button onclick="randomizeShips()" class="flex-1 py-3 bg-blue-500 text-white font-bold rounded-xl shadow border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">
+                        Random 🔀
+                    </button>
+                    <button onclick="resetSetup()" class="px-4 py-3 bg-red-400 text-white font-bold rounded-xl shadow border-b-4 border-red-600 active:border-b-0 active:translate-y-1">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                
+                <button id="startGameBtn" onclick="startGame()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">
+                    Place all ships!
                 </button>
             </div>
-            <!-- Right: Setup Board -->
+            
+            <!-- Setup Grid -->
             <div class="h-full aspect-square max-h-[90vh] bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200 flex flex-col items-center justify-center">
-                 <h3 class="text-lg font-bold text-sea-700 mb-1">Place Your Ships</h3>
                  <div id="setupBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl">
                     <!-- JS fills grid -->
                  </div>
@@ -231,107 +188,397 @@
 
         <!-- 3. Battle Screen -->
         <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2">
-            
-            <!-- Left: BIG Board (The Attack Record) -->
+            <!-- Big Attack Map -->
             <div class="h-full aspect-square max-h-[85vh] flex flex-col">
                 <div class="flex justify-between items-end mb-2 px-2">
                     <h3 class="text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
-                    <!-- Legend -->
-                    <div class="flex gap-3 text-sm font-bold bg-white px-3 py-1 rounded-full shadow-sm">
-                        <div class="flex items-center gap-1"><span class="text-xl">💥</span> Hit</div>
-                        <div class="flex items-center gap-1"><span class="text-xl">💦</span> Miss</div>
-                    </div>
+                    <button onclick="endGame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">End Game</button>
                 </div>
-                
                 <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative">
-                     <div id="enemyBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl">
-                        <!-- JS fills grid -->
-                     </div>
-                </div>
-                <div class="text-center text-sea-700 font-bold mt-2 animate-bounce">
-                    👆 Tap here to shoot!
+                     <div id="enemyBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
                 </div>
             </div>
 
-            <!-- Right: SMALL Board (My Status) -->
+            <!-- Small Status Map -->
             <div class="w-1/3 h-full max-h-[85vh] flex flex-col">
                 <h3 class="text-xl font-bold text-sea-700 text-center mb-2">My Ships</h3>
                 <div class="bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 aspect-square mb-2">
-                    <div id="playerBoard" class="board-container small-board w-full h-full bg-sea-100 p-1 rounded-lg">
-                        <!-- JS fills grid -->
-                    </div>
+                    <div id="playerBoard" class="board-container small-board w-full h-full bg-sea-100 p-1 rounded-lg"></div>
                 </div>
-                
-                <!-- Turn Info -->
                 <div class="flex-1 bg-white rounded-3xl shadow p-4 flex flex-col justify-center items-center gap-2 border-4 border-sea-100">
                     <div class="text-center">
                         <div class="text-slate-500 text-sm font-bold uppercase">Status</div>
-                        <div class="text-3xl text-green-500 font-bold animate-pulse">YOUR TURN</div>
+                        <div class="text-3xl text-green-500 font-bold animate-pulse">PLAYING</div>
                     </div>
                 </div>
             </div>
-
         </div>
 
     </main>
     
-    <footer id="gameLog" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg text-lg font-bold text-sea-700 pointer-events-none transition-opacity duration-300 z-50 border-2 border-sea-200">
-        Welcome!
+    <footer id="gameLog" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg text-lg font-bold text-sea-700 pointer-events-none transition-all duration-300 z-50 border-2 border-sea-200 whitespace-nowrap">
+        Connecting...
     </footer>
 
-    <script>
-        // --- Game Logic ---
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
+        // --- 1. CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFHSgSTrxn5D0tQOsbUckQ_xEvxbh2mq4",
+            authDomain: "battleship-d5dbb.firebaseapp.com",
+            projectId: "battleship-d5dbb",
+            storageBucket: "battleship-d5dbb.firebasestorage.app",
+            messagingSenderId: "40264054224",
+            appId: "1:40264054224:web:e8176d4669aeca6b7535d5"
+        };
+
+        // --- 2. INIT ---
+        let app, auth, db, user;
+        const appId = "kids-battle-ship-v1"; 
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            
+            signInAnonymously(auth).catch(e => console.error(e));
+            onAuthStateChanged(auth, (u) => {
+                const dot = document.getElementById('connDot');
+                const text = document.getElementById('connText');
+                if (u) {
+                    user = u;
+                    dot.classList.remove('bg-red-500'); dot.classList.add('bg-green-500', 'pulse-dot');
+                    text.innerText = "Connected";
+                    updateLog("✅ Ready to play!");
+                } else {
+                    dot.classList.remove('bg-green-500', 'pulse-dot'); dot.classList.add('bg-red-500');
+                    text.innerText = "Offline";
+                }
+            });
+        } catch (e) { console.error(e); }
+
+        // --- 3. SHIP DEFINITIONS ---
+        // 5 Ships: Carrier(5), Battleship(4), Cruiser(3), Submarine(3), Destroyer(2)
+        const FLEET_TYPES = [
+            { id: 'carrier', name: 'Carrier', size: 5, color: 'bg-yellow-500' },
+            { id: 'battleship', name: 'Battleship', size: 4, color: 'bg-orange-500' },
+            { id: 'cruiser', name: 'Cruiser', size: 3, color: 'bg-red-400' },
+            { id: 'submarine', name: 'Sub', size: 3, color: 'bg-green-500' },
+            { id: 'destroyer', name: 'Destroyer', size: 2, color: 'bg-blue-400' }
+        ];
+
+        // --- 4. GAME STATE ---
+        let currentRoomId = null;
+        let isHost = false;
+        let placedShips = []; // { id, size, index, horizontal, color }
+        let selectedShipType = null; // Currently selected from sidebar
+
+        // --- 5. LOGIC: SETUP & PLACEMENT ---
+        
+        // Render Sidebar
+        window.renderShipList = function() {
+            const list = document.getElementById('shipList');
+            list.innerHTML = '';
+            
+            FLEET_TYPES.forEach(ship => {
+                // Check if already placed
+                const isPlaced = placedShips.find(s => s.id === ship.id);
+                
+                const div = document.createElement('div');
+                div.className = `ship-item w-full p-2 rounded-xl bg-sea-100 border border-sea-300 cursor-pointer flex justify-between items-center ${isPlaced ? 'placed' : ''} ${selectedShipType?.id === ship.id ? 'selected' : ''}`;
+                
+                if (!isPlaced) {
+                    div.onclick = () => selectShipType(ship);
+                }
+
+                // Visual blocks
+                let blocks = '';
+                for(let i=0; i<ship.size; i++) blocks += `<div class="w-4 h-4 rounded ${ship.color} border border-white"></div>`;
+                
+                div.innerHTML = `<span class="font-bold text-sm">${ship.name} (${ship.size})</span><div class="flex gap-1">${blocks}</div>`;
+                list.appendChild(div);
+            });
+
+            checkStartButton();
+        }
+
+        window.selectShipType = function(ship) {
+            selectedShipType = ship;
+            renderShipList(); // Re-render to show selection highlight
+            updateLog(`Selected ${ship.name}. Tap board to place.`);
+        }
+
+        // Tap on Grid Logic (Place or Rotate)
+        window.handleSetupClick = function(index) {
+            // 1. Check if clicking an existing ship (Rotate/Remove)
+            const clickedShipIndex = placedShips.findIndex(s => {
+                const indices = getShipIndices(s.index, s.size, s.horizontal);
+                return indices.includes(index);
+            });
+
+            if (clickedShipIndex !== -1) {
+                // Rotate existing ship
+                const ship = placedShips[clickedShipIndex];
+                const newHorizontal = !ship.horizontal;
+                
+                // Temporarily remove to check placement
+                placedShips.splice(clickedShipIndex, 1);
+                
+                if (isValidPlacement(ship.index, ship.size, newHorizontal)) {
+                    ship.horizontal = newHorizontal;
+                    placedShips.push(ship);
+                    updateLog(`Rotated ${ship.name}!`);
+                    playSound('rotate');
+                } else {
+                    // Cannot rotate, put back
+                    ship.horizontal = !newHorizontal; // Revert
+                    placedShips.push(ship);
+                    
+                    // Option: If rotation fails, maybe just remove it? 
+                    // Let's toggle: If rotate fails, remove it to sidebar.
+                    placedShips.splice(clickedShipIndex, 1);
+                    updateLog(`${ship.name} removed (No space to rotate)`);
+                }
+                
+                renderShipList();
+                createGrid('setupBoard', true); // Re-render board
+                return;
+            }
+
+            // 2. Place new ship
+            if (selectedShipType) {
+                if (isValidPlacement(index, selectedShipType.size, true)) {
+                    placedShips.push({
+                        id: selectedShipType.id,
+                        name: selectedShipType.name,
+                        size: selectedShipType.size,
+                        color: selectedShipType.color,
+                        index: index,
+                        horizontal: true // Default horizontal
+                    });
+                    
+                    updateLog(`Placed ${selectedShipType.name}! Tap it to rotate.`);
+                    playSound('place');
+                    selectedShipType = null; // Deselect
+                    renderShipList();
+                    createGrid('setupBoard', true);
+                } else {
+                    updateLog("Can't place here! Out of bounds or overlap.");
+                    shakeBoard();
+                }
+            }
+        }
+
+        function getShipIndices(startIndex, size, horizontal) {
+            let indices = [];
+            let r = Math.floor(startIndex / 10);
+            let c = startIndex % 10;
+            
+            for (let i = 0; i < size; i++) {
+                if (horizontal) indices.push(r * 10 + (c + i));
+                else indices.push((r + i) * 10 + c);
+            }
+            return indices;
+        }
+
+        function isValidPlacement(index, size, horizontal) {
+            let r = Math.floor(index / 10);
+            let c = index % 10;
+
+            // Boundary Check
+            if (horizontal && c + size > 10) return false;
+            if (!horizontal && r + size > 10) return false;
+
+            // Overlap Check
+            const newIndices = getShipIndices(index, size, horizontal);
+            for (let s of placedShips) {
+                const existingIndices = getShipIndices(s.index, s.size, s.horizontal);
+                if (newIndices.some(idx => existingIndices.includes(idx))) return false;
+            }
+            return true;
+        }
+
+        window.randomizeShips = function() {
+            placedShips = [];
+            for (let ship of FLEET_TYPES) {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 100) {
+                    const idx = Math.floor(Math.random() * 100);
+                    const horiz = Math.random() > 0.5;
+                    if (isValidPlacement(idx, ship.size, horiz)) {
+                        placedShips.push({
+                            id: ship.id, name: ship.name, size: ship.size, color: ship.color,
+                            index: idx, horizontal: horiz
+                        });
+                        placed = true;
+                    }
+                    attempts++;
+                }
+            }
+            renderShipList();
+            createGrid('setupBoard', true);
+            updateLog("Ships shuffled!");
+        }
+
+        window.resetSetup = function() {
+            placedShips = [];
+            selectedShipType = null;
+            renderShipList();
+            createGrid('setupBoard', true);
+        }
+
+        function checkStartButton() {
+            const btn = document.getElementById('startGameBtn');
+            if (placedShips.length === FLEET_TYPES.length) {
+                btn.disabled = false;
+                btn.classList.remove('bg-gray-400');
+                btn.classList.add('bg-green-500', 'animate-pulse');
+                btn.innerText = "Ready to Battle! ▶";
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-gray-400');
+                btn.classList.remove('bg-green-500', 'animate-pulse');
+                btn.innerText = `Place all ships (${placedShips.length}/5)`;
+            }
+        }
+
+        // --- 6. GLOBAL FUNCTIONS (Create/Join/Delete) ---
+
+        window.createRoom = async function() {
+            if (!user) { alert("Wait for connection..."); return; }
+            const name = document.getElementById('playerNameInput').value || "Captain";
+            const roomId = Math.floor(1000 + Math.random() * 9000).toString();
+            currentRoomId = roomId; isHost = true;
+
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+                await setDoc(roomRef, {
+                    host: { uid: user.uid, name: name },
+                    status: 'waiting', lastAction: 'Created', createdAt: Date.now()
+                });
+                document.getElementById('roomId').innerText = roomId;
+                switchScreen('setupScreen');
+                listenToRoom(roomId);
+            } catch (err) { console.error(err); alert("Create Error. Check Rules."); }
+        };
+
+        window.joinRoom = async function() {
+            if (!user) return;
+            const name = document.getElementById('playerNameInput').value || "Sailor";
+            const roomId = document.getElementById('joinRoomId').value;
+            if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
+
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+                const roomSnap = await getDoc(roomRef);
+                if (roomSnap.exists()) {
+                    await updateDoc(roomRef, { guest: { uid: user.uid, name: name }, status: 'setup', lastAction: 'Joined' });
+                    currentRoomId = roomId; isHost = false;
+                    document.getElementById('roomId').innerText = roomId;
+                    switchScreen('setupScreen');
+                    listenToRoom(roomId);
+                } else { alert("Room not found!"); }
+            } catch (err) { console.error(err); }
+        };
+
+        // NEW: Delete Room Function
+        window.endGame = async function() {
+            if (currentRoomId) {
+                if (confirm("End game and delete room data?")) {
+                    try {
+                        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                        await deleteDoc(roomRef);
+                        alert("Game Data Deleted. Returning to Lobby.");
+                        location.reload(); // Simple reload to reset state
+                    } catch (e) {
+                        console.error("Delete error", e);
+                        alert("Could not delete room.");
+                    }
+                }
+            } else {
+                location.reload();
+            }
+        }
+
+        window.startGame = function() {
+            if (currentRoomId) {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                updateDoc(roomRef, { lastAction: isHost ? "Host Ready" : "Guest Ready" });
+            }
+            switchScreen('battleScreen');
+        }
+
+        function listenToRoom(roomId) {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            onSnapshot(roomRef, (docSnap) => {
+                if (!docSnap.exists()) {
+                    // Room deleted by other player
+                    if (currentRoomId) {
+                        alert("Room closed by other player.");
+                        location.reload();
+                    }
+                    return;
+                }
+                const data = docSnap.data();
+                if (data.lastAction) updateLog(`🔔 ${data.lastAction}`);
+                if (data.guest && data.status === 'waiting' && isHost) updateLog(`${data.guest.name} joined!`);
+            });
+        }
+
+        // --- 7. VISUALS ---
         const COLS = ['A','B','C','D','E','F','G','H','I','J'];
-        const ROWS = [1,2,3,4,5,6,7,8,9,10];
 
         function createGrid(elementId, interactive = false) {
             const board = document.getElementById(elementId);
             board.innerHTML = ''; 
-            
-            // 1. Add Column Labels (Top row: empty, A, B, C...)
-            board.appendChild(createLabel('')); // Top-left corner
-            for (let c of COLS) {
-                board.appendChild(createLabel(c));
-            }
+            board.appendChild(createLabel('')); 
+            for (let c of COLS) board.appendChild(createLabel(c));
 
-            // 2. Add Rows
             for (let r = 0; r < 10; r++) {
-                // Row Label (Left column: 1, 2, 3...)
                 board.appendChild(createLabel(r + 1));
-
-                // 10 Grid Cells
                 for (let c = 0; c < 10; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     const index = r * 10 + c;
                     cell.dataset.index = index;
 
-                    // Demo Logic
-                    if (elementId === 'setupBoard' && [12, 13, 14, 15, 45, 55, 65].includes(index)) {
-                        cell.classList.add('occupied');
-                    }
-                    if (elementId === 'playerBoard') {
-                        if ([22, 32].includes(index)) cell.classList.add('hit');
-                        if ([88, 89, 90].includes(index)) cell.classList.add('occupied');
-                        if ([0, 9, 99].includes(index)) cell.classList.add('miss');
+                    // --- SETUP BOARD RENDERING ---
+                    if (elementId === 'setupBoard') {
+                        // Check if ship exists here
+                        const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
+                        if (ship) {
+                            cell.classList.add('occupied');
+                            // Use ship specific color if desired, currently using standard orange
+                        }
+                        
+                        // Setup Click Interaction
+                        if (interactive) {
+                            cell.onclick = () => handleSetupClick(index);
+                        }
                     }
 
-                    // Click Logic (Only for Enemy Board)
-                    if (elementId === 'enemyBoard') {
-                        cell.addEventListener('click', function() {
+                    // --- BATTLE BOARDS ---
+                    if (elementId === 'playerBoard') {
+                        // Render placed ships for player view
+                        const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
+                        if (ship) cell.classList.add('occupied');
+                    }
+                    
+                    if (elementId === 'enemyBoard' && interactive) {
+                        cell.onclick = function() {
                             if (this.classList.contains('hit') || this.classList.contains('miss')) return;
-                            
-                            // Simple visual feedback for prototype
-                            const isHit = Math.random() > 0.7;
-                            if (isHit) {
-                                this.classList.add('hit');
-                                updateLog("BOOM! Hit! 💥");
-                            } else {
-                                this.classList.add('miss');
-                                updateLog("Splash! Miss! 💦");
+                            const isHit = Math.random() > 0.7; // Mock logic
+                            this.classList.add(isHit ? 'hit' : 'miss');
+                            if (currentRoomId) {
+                                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                                updateDoc(roomRef, { lastAction: `Attack ${COLS[c]}${r+1} (${isHit?'Hit':'Miss'})` });
                             }
-                        });
+                        };
                     }
                     board.appendChild(cell);
                 }
@@ -345,32 +592,32 @@
             return el;
         }
 
-        function switchScreen(screenId) {
+        window.switchScreen = function(screenId) {
             document.querySelectorAll('main > div').forEach(d => d.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
             
             if (screenId === 'setupScreen') {
+                renderShipList();
                 createGrid('setupBoard', true);
-                updateLog("Place your ships!");
-                document.getElementById('statusText').innerText = "Setup";
             } else if (screenId === 'battleScreen') {
                 createGrid('enemyBoard', true);
                 createGrid('playerBoard', false);
-                updateLog("Tap the big map to attack!");
-                document.getElementById('statusText').innerText = "Battle";
-                document.getElementById('roomId').innerText = "8888";
             }
         }
 
-        function updateLog(msg) {
+        window.updateLog = function(msg) {
             const logEl = document.getElementById('gameLog');
             logEl.style.opacity = 0;
-            logEl.innerText = msg;
-            void logEl.offsetWidth; 
-            logEl.style.opacity = 1;
+            setTimeout(() => { logEl.innerText = msg; logEl.style.opacity = 1; }, 100);
         }
-
-        window.switchScreen = switchScreen;
+        
+        function playSound(type) { console.log(type); }
+        function shakeBoard() {
+             const board = document.getElementById('setupBoard');
+             board.style.transform = "translateX(5px)";
+             setTimeout(()=>board.style.transform = "translateX(-5px)", 50);
+             setTimeout(()=>board.style.transform = "translateX(0)", 100);
+        }
     </script>
 </body>
 </html>
