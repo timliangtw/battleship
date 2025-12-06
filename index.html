@@ -17,7 +17,10 @@
                         ship: { DEFAULT: '#FFB74D', active: '#FF9800' }, 
                         hit: '#EF5350', miss: '#FFFFFF'
                     },
-                    fontFamily: { 'cute': ['"Fredoka"', 'sans-serif'] }
+                    fontFamily: { 'cute': ['"Fredoka"', 'sans-serif'] },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
                 }
             }
         }
@@ -67,39 +70,33 @@
         
         /* Ship Styling */
         .grid-cell.occupied {
-            /* background-color: #FFB74D;  REMOVED default color to allow custom colors */
             border-color: rgba(255, 255, 255, 0.5);
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
-        .grid-cell.occupied.preview {
-            opacity: 0.5; /* Ghost preview */
-        }
+        .grid-cell.occupied.preview { opacity: 0.5; }
         
         /* Hit/Miss Effects */
         .grid-cell.hit { background-color: #EF5350 !important; animation: shake 0.5s; }
-        .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; }
+        .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; z-index: 10; }
         .grid-cell.miss { background-color: #B2EBF2 !important; }
-        .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; opacity: 0.8; }
+        .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; opacity: 0.8; z-index: 10; }
 
         @keyframes shake {
             0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); }
         }
 
+        /* Turn Indicator Overlay */
+        .disabled-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.2); z-index: 20;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 1rem; cursor: not-allowed;
+            backdrop-filter: grayscale(0.5);
+        }
+
         /* Sidebar Ship Item */
-        .ship-item {
-            transition: all 0.2s;
-            border: 3px solid transparent;
-        }
-        .ship-item.selected {
-            background-color: #FFF9C4;
-            border-color: #FF9800;
-            transform: scale(1.05);
-        }
-        .ship-item.placed {
-            opacity: 0.3;
-            pointer-events: none;
-            filter: grayscale(100%);
-        }
+        .ship-item { transition: all 0.2s; border: 3px solid transparent; }
+        .ship-item.selected { background-color: #FFF9C4; border-color: #FF9800; transform: scale(1.05); }
+        .ship-item.placed { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 
         /* Connection Dot */
         .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
@@ -126,7 +123,7 @@
         </div>
 
         <div class="text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
-            Room: <span id="roomId" class="text-yellow-300 font-bold">---</span>
+            Room: <span id="roomIdDisplay" class="text-yellow-300 font-bold">---</span>
         </div>
     </header>
 
@@ -173,7 +170,7 @@
                     </button>
                 </div>
                 
-                <button id="startGameBtn" onclick="startGame()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">
+                <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">
                     Place all ships!
                 </button>
             </div>
@@ -184,18 +181,36 @@
                     <!-- JS fills grid -->
                  </div>
             </div>
+            
+            <!-- Waiting Modal -->
+            <div id="waitingForOpponent" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
+                <div class="bg-white p-6 rounded-2xl text-center shadow-2xl animate-bounce">
+                    <h3 class="text-2xl font-bold text-sea-700">Waiting for Opponent...</h3>
+                    <p class="text-slate-500">They are placing their ships.</p>
+                </div>
+            </div>
         </div>
 
         <!-- 3. Battle Screen -->
-        <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2">
+        <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2 relative">
+            
+            <!-- Turn Banner -->
+            <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-orange-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">
+                Initializing...
+            </div>
+
             <!-- Big Attack Map -->
             <div class="h-full aspect-square max-h-[85vh] flex flex-col">
                 <div class="flex justify-between items-end mb-2 px-2">
                     <h3 class="text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
-                    <button onclick="endGame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">End Game</button>
+                    <button onclick="endGame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Quit</button>
                 </div>
                 <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative">
                      <div id="enemyBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
+                     <!-- Disabled Overlay for Turn logic -->
+                     <div id="enemyBoardOverlay" class="disabled-overlay hidden">
+                         <span class="text-white font-bold text-2xl drop-shadow-md">Opponent's Turn</span>
+                     </div>
                 </div>
             </div>
 
@@ -205,11 +220,10 @@
                 <div class="bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 aspect-square mb-2">
                     <div id="playerBoard" class="board-container small-board w-full h-full bg-sea-100 p-1 rounded-lg"></div>
                 </div>
-                <div class="flex-1 bg-white rounded-3xl shadow p-4 flex flex-col justify-center items-center gap-2 border-4 border-sea-100">
-                    <div class="text-center">
-                        <div class="text-slate-500 text-sm font-bold uppercase">Status</div>
-                        <div class="text-3xl text-green-500 font-bold animate-pulse">PLAYING</div>
-                    </div>
+                <!-- Status Box -->
+                <div class="flex-1 bg-white rounded-3xl shadow p-2 flex flex-col justify-center items-center gap-1 border-4 border-sea-100">
+                     <div class="text-slate-400 text-xs font-bold uppercase">vs</div>
+                     <div id="opponentNameDisplay" class="text-lg text-sea-700 font-bold">Opponent</div>
                 </div>
             </div>
         </div>
@@ -224,7 +238,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- 1. CONFIG ---
         const firebaseConfig = {
@@ -261,8 +275,7 @@
             });
         } catch (e) { console.error(e); }
 
-        // --- 3. SHIP DEFINITIONS ---
-        // 5 Ships: Carrier(5), Battleship(4), Cruiser(3), Submarine(3), Destroyer(2)
+        // --- 3. CONSTANTS ---
         const FLEET_TYPES = [
             { id: 'carrier', name: 'Carrier', size: 5, color: 'bg-yellow-500' },
             { id: 'battleship', name: 'Battleship', size: 4, color: 'bg-orange-500' },
@@ -275,99 +288,74 @@
         let currentRoomId = null;
         let isHost = false;
         let placedShips = []; // { id, size, index, horizontal, color }
-        let selectedShipType = null; // Currently selected from sidebar
-
-        // --- 5. LOGIC: SETUP & PLACEMENT ---
+        let selectedShipType = null; 
         
-        // Render Sidebar
+        // Battle State
+        let enemyShipsCache = []; // Stores opponent's ships for hit detection
+        let myShots = []; // Indices I attacked
+        let enemyShots = []; // Indices enemy attacked
+
+        // --- 5. SETUP LOGIC ---
+        
         window.renderShipList = function() {
             const list = document.getElementById('shipList');
             list.innerHTML = '';
             
             FLEET_TYPES.forEach(ship => {
-                // Check if already placed
                 const isPlaced = placedShips.find(s => s.id === ship.id);
-                
                 const div = document.createElement('div');
                 div.className = `ship-item w-full p-2 rounded-xl bg-sea-100 border border-sea-300 cursor-pointer flex justify-between items-center ${isPlaced ? 'placed' : ''} ${selectedShipType?.id === ship.id ? 'selected' : ''}`;
-                
-                if (!isPlaced) {
-                    div.onclick = () => selectShipType(ship);
-                }
-
-                // Visual blocks
+                if (!isPlaced) div.onclick = () => selectShipType(ship);
                 let blocks = '';
                 for(let i=0; i<ship.size; i++) blocks += `<div class="w-4 h-4 rounded ${ship.color} border border-white"></div>`;
-                
                 div.innerHTML = `<span class="font-bold text-sm">${ship.name} (${ship.size})</span><div class="flex gap-1">${blocks}</div>`;
                 list.appendChild(div);
             });
-
             checkStartButton();
         }
 
         window.selectShipType = function(ship) {
             selectedShipType = ship;
-            renderShipList(); // Re-render to show selection highlight
+            renderShipList(); 
             updateLog(`Selected ${ship.name}. Tap board to place.`);
         }
 
-        // Tap on Grid Logic (Place or Rotate)
         window.handleSetupClick = function(index) {
-            // 1. Check if clicking an existing ship (Rotate/Remove)
-            const clickedShipIndex = placedShips.findIndex(s => {
-                const indices = getShipIndices(s.index, s.size, s.horizontal);
-                return indices.includes(index);
-            });
+            const clickedShipIndex = placedShips.findIndex(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
 
             if (clickedShipIndex !== -1) {
-                // Rotate existing ship
+                // Rotate Logic
                 const ship = placedShips[clickedShipIndex];
                 const newHorizontal = !ship.horizontal;
-                
-                // Temporarily remove to check placement
                 placedShips.splice(clickedShipIndex, 1);
                 
                 if (isValidPlacement(ship.index, ship.size, newHorizontal)) {
                     ship.horizontal = newHorizontal;
                     placedShips.push(ship);
                     updateLog(`Rotated ${ship.name}!`);
-                    playSound('rotate');
                 } else {
-                    // Cannot rotate, put back
-                    ship.horizontal = !newHorizontal; // Revert
+                    ship.horizontal = !newHorizontal; // Fail, put back
                     placedShips.push(ship);
-                    
-                    // Option: If rotation fails, maybe just remove it? 
-                    // Let's toggle: If rotate fails, remove it to sidebar.
-                    placedShips.splice(clickedShipIndex, 1);
-                    updateLog(`${ship.name} removed (No space to rotate)`);
+                    updateLog(`Can't rotate here.`);
+                    shakeBoard();
                 }
-                
                 renderShipList();
-                createGrid('setupBoard', true); // Re-render board
+                createGrid('setupBoard', true); 
                 return;
             }
 
-            // 2. Place new ship
+            // Place New Ship
             if (selectedShipType) {
                 if (isValidPlacement(index, selectedShipType.size, true)) {
                     placedShips.push({
-                        id: selectedShipType.id,
-                        name: selectedShipType.name,
-                        size: selectedShipType.size,
-                        color: selectedShipType.color,
-                        index: index,
-                        horizontal: true // Default horizontal
+                        id: selectedShipType.id, name: selectedShipType.name, size: selectedShipType.size, color: selectedShipType.color,
+                        index: index, horizontal: true 
                     });
-                    
-                    updateLog(`Placed ${selectedShipType.name}! Tap it to rotate.`);
-                    playSound('place');
-                    selectedShipType = null; // Deselect
+                    selectedShipType = null;
                     renderShipList();
                     createGrid('setupBoard', true);
                 } else {
-                    updateLog("Can't place here! Out of bounds or overlap.");
+                    updateLog("Can't place here!");
                     shakeBoard();
                 }
             }
@@ -377,7 +365,6 @@
             let indices = [];
             let r = Math.floor(startIndex / 10);
             let c = startIndex % 10;
-            
             for (let i = 0; i < size; i++) {
                 if (horizontal) indices.push(r * 10 + (c + i));
                 else indices.push((r + i) * 10 + c);
@@ -388,12 +375,8 @@
         function isValidPlacement(index, size, horizontal) {
             let r = Math.floor(index / 10);
             let c = index % 10;
-
-            // Boundary Check
             if (horizontal && c + size > 10) return false;
             if (!horizontal && r + size > 10) return false;
-
-            // Overlap Check
             const newIndices = getShipIndices(index, size, horizontal);
             for (let s of placedShips) {
                 const existingIndices = getShipIndices(s.index, s.size, s.horizontal);
@@ -422,14 +405,11 @@
             }
             renderShipList();
             createGrid('setupBoard', true);
-            updateLog("Ships shuffled!");
         }
 
         window.resetSetup = function() {
-            placedShips = [];
-            selectedShipType = null;
-            renderShipList();
-            createGrid('setupBoard', true);
+            placedShips = []; selectedShipType = null;
+            renderShipList(); createGrid('setupBoard', true);
         }
 
         function checkStartButton() {
@@ -438,7 +418,7 @@
                 btn.disabled = false;
                 btn.classList.remove('bg-gray-400');
                 btn.classList.add('bg-green-500', 'animate-pulse');
-                btn.innerText = "Ready to Battle! ▶";
+                btn.innerText = "I'm Ready! ▶";
             } else {
                 btn.disabled = true;
                 btn.classList.add('bg-gray-400');
@@ -447,10 +427,10 @@
             }
         }
 
-        // --- 6. GLOBAL FUNCTIONS (Create/Join/Delete) ---
+        // --- 6. ROOM & SYNC LOGIC ---
 
         window.createRoom = async function() {
-            if (!user) { alert("Wait for connection..."); return; }
+            if (!user) return alert("Wait for connection...");
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
@@ -458,10 +438,13 @@
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
-                    host: { uid: user.uid, name: name },
-                    status: 'waiting', lastAction: 'Created', createdAt: Date.now()
+                    host: { uid: user.uid, name: name, ready: false },
+                    status: 'waiting', 
+                    moves: [], // { uid: string, index: number }
+                    currentTurn: null,
+                    createdAt: Date.now()
                 });
-                document.getElementById('roomId').innerText = roomId;
+                document.getElementById('roomIdDisplay').innerText = roomId;
                 switchScreen('setupScreen');
                 listenToRoom(roomId);
             } catch (err) { console.error(err); alert("Create Error. Check Rules."); }
@@ -477,60 +460,161 @@
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
                 if (roomSnap.exists()) {
-                    await updateDoc(roomRef, { guest: { uid: user.uid, name: name }, status: 'setup', lastAction: 'Joined' });
+                    await updateDoc(roomRef, { 
+                        "guest.uid": user.uid, 
+                        "guest.name": name,
+                        "guest.ready": false,
+                        status: 'setup', 
+                        lastAction: 'Joined' 
+                    });
                     currentRoomId = roomId; isHost = false;
-                    document.getElementById('roomId').innerText = roomId;
+                    document.getElementById('roomIdDisplay').innerText = roomId;
                     switchScreen('setupScreen');
                     listenToRoom(roomId);
                 } else { alert("Room not found!"); }
             } catch (err) { console.error(err); }
         };
 
-        // NEW: Delete Room Function
-        window.endGame = async function() {
-            if (currentRoomId) {
-                if (confirm("End game and delete room data?")) {
-                    try {
-                        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-                        await deleteDoc(roomRef);
-                        alert("Game Data Deleted. Returning to Lobby.");
-                        location.reload(); // Simple reload to reset state
-                    } catch (e) {
-                        console.error("Delete error", e);
-                        alert("Could not delete room.");
-                    }
-                }
-            } else {
-                location.reload();
-            }
-        }
+        // Player clicks Ready -> Uploads Ships
+        window.setReady = async function() {
+            if (!currentRoomId) return;
+            document.getElementById('startGameBtn').disabled = true;
+            document.getElementById('startGameBtn').innerText = "Waiting for Opponent...";
+            document.getElementById('waitingForOpponent').classList.remove('hidden');
 
-        window.startGame = function() {
-            if (currentRoomId) {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-                updateDoc(roomRef, { lastAction: isHost ? "Host Ready" : "Guest Ready" });
-            }
-            switchScreen('battleScreen');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            // Upload ships to my slot
+            const updatePayload = {};
+            const role = isHost ? 'host' : 'guest';
+            updatePayload[`${role}.ships`] = placedShips;
+            updatePayload[`${role}.ready`] = true;
+            updatePayload['lastAction'] = `${role.toUpperCase()} is Ready`;
+
+            await updateDoc(roomRef, updatePayload);
         }
 
         function listenToRoom(roomId) {
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
             onSnapshot(roomRef, (docSnap) => {
-                if (!docSnap.exists()) {
-                    // Room deleted by other player
-                    if (currentRoomId) {
-                        alert("Room closed by other player.");
-                        location.reload();
-                    }
-                    return;
-                }
+                if (!docSnap.exists()) { alert("Room closed."); location.reload(); return; }
                 const data = docSnap.data();
+                
+                // 1. Check for Game Start
+                if (data.host?.ready && data.guest?.ready && data.status !== 'playing') {
+                    // Triggers once when both ready
+                    if (isHost) {
+                        const startPlayer = Math.random() > 0.5 ? data.host.uid : data.guest.uid;
+                        updateDoc(roomRef, {
+                            status: 'playing',
+                            currentTurn: startPlayer,
+                            lastAction: "Game Started"
+                        });
+                    }
+                }
+
+                // 2. State Transition: Setup -> Battle
+                if (data.status === 'playing') {
+                    // CACHE ENEMY SHIPS for local hit detection
+                    if (isHost) enemyShipsCache = data.guest.ships || [];
+                    else enemyShipsCache = data.host.ships || [];
+                    
+                    // Display Opponent Name
+                    const oppName = isHost ? (data.guest?.name || 'Guest') : (data.host?.name || 'Host');
+                    document.getElementById('opponentNameDisplay').innerText = oppName;
+
+                    // PROCESS MOVES
+                    myShots = [];
+                    enemyShots = [];
+                    if (data.moves) {
+                        data.moves.forEach(m => {
+                            if (m.uid === user.uid) myShots.push(m.index);
+                            else enemyShots.push(m.index);
+                        });
+                    }
+
+                    // Update UI Turn
+                    updateTurnUI(data.currentTurn);
+                    
+                    // Switch Screen if not already
+                    if (!document.getElementById('setupScreen').classList.contains('hidden')) {
+                         switchScreen('battleScreen');
+                    } else {
+                        // Refresh boards if already in battle
+                        createGrid('enemyBoard', true);
+                        createGrid('playerBoard', false);
+                    }
+                }
+                
                 if (data.lastAction) updateLog(`🔔 ${data.lastAction}`);
-                if (data.guest && data.status === 'waiting' && isHost) updateLog(`${data.guest.name} joined!`);
+            });
+        }
+        
+        function updateTurnUI(turnUid) {
+            const isMyTurn = turnUid === user.uid;
+            const banner = document.getElementById('turnBanner');
+            const overlay = document.getElementById('enemyBoardOverlay');
+            
+            if (isMyTurn) {
+                banner.innerText = "YOUR TURN!";
+                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-green-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl animate-bounce";
+                overlay.classList.add('hidden');
+            } else {
+                banner.innerText = "Opponent's Turn";
+                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-6 py-2 rounded-b-xl shadow-lg font-bold text-lg";
+                overlay.classList.remove('hidden');
+            }
+        }
+
+        // --- 7. BATTLE LOGIC (REAL SYNC) ---
+        
+        window.handleAttack = function(index) {
+            // Check handled by UI Overlay, but double check here
+            if (!currentRoomId) return;
+            
+            // Check if already shot here
+            if (myShots.includes(index)) return;
+
+            // Optimistic UI Update (will be overwritten by DB sync shortly)
+            // But we actually wait for DB sync to be safe in this version
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            // Toggle Turn
+            // Note: We need to know who the other player is.
+            // Simplified: Just set currentTurn to "not me" isn't enough, we need the UID.
+            // We can fetch the doc to be sure, or rely on local state.
+            // Let's assume we toggle based on cached data would be risky. 
+            // Better: use a Cloud Function or just read from local cache of 'listenToRoom'.
+            // For this simple client-side: we just stored host/guest UIDs.
+            
+            // We need to fetch current state to know opponent UID safely? 
+            // We can assume we know who we are (Host or Guest).
+            
+            // Wait, we don't have opponent UID stored globally easily. Let's fix that.
+            // Actually 'listenToRoom' has data.host.uid etc.
+            // Let's rely on the fact that if I am host, next turn is Guest.
+            
+            // Let's find opponent UID from a dirty trick: snapshot data isn't global.
+            // We will fetch doc strictly to ensure consistency.
+            getDoc(roomRef).then(snap => {
+                const data = snap.data();
+                if (data.currentTurn !== user.uid) return; // Not my turn
+                
+                const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
+                
+                // Add move
+                const newMove = { uid: user.uid, index: index };
+                
+                updateDoc(roomRef, {
+                    moves: arrayUnion(newMove),
+                    currentTurn: nextTurn,
+                    lastAction: `Shot fired!`
+                });
             });
         }
 
-        // --- 7. VISUALS ---
+        // --- 8. VISUALS ---
         const COLS = ['A','B','C','D','E','F','G','H','I','J'];
 
         function createGrid(elementId, interactive = false) {
@@ -545,43 +629,40 @@
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     const index = r * 10 + c;
-                    cell.dataset.index = index;
 
-                    // --- SETUP BOARD RENDERING ---
+                    // --- SETUP ---
                     if (elementId === 'setupBoard') {
-                        // Check if ship exists here
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-                        if (ship) {
-                            cell.classList.add('occupied');
-                            cell.classList.add(ship.color); // Apply specific color
-                        }
-                        
-                        // Setup Click Interaction
-                        if (interactive) {
-                            cell.onclick = () => handleSetupClick(index);
-                        }
+                        if (ship) { cell.classList.add('occupied', ship.color); }
+                        if (interactive) cell.onclick = () => handleSetupClick(index);
                     }
 
-                    // --- BATTLE BOARDS ---
+                    // --- PLAYER BOARD (My View) ---
                     if (elementId === 'playerBoard') {
-                        // Render placed ships for player view
+                        // 1. Draw My Ships
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-                        if (ship) {
-                            cell.classList.add('occupied');
-                            cell.classList.add(ship.color); // Apply specific color
+                        if (ship) { cell.classList.add('occupied', ship.color); }
+                        
+                        // 2. Draw Enemy Shots
+                        if (enemyShots.includes(index)) {
+                            // Check Hit
+                            if (ship) cell.classList.add('hit');
+                            else cell.classList.add('miss');
                         }
                     }
                     
-                    if (elementId === 'enemyBoard' && interactive) {
-                        cell.onclick = function() {
-                            if (this.classList.contains('hit') || this.classList.contains('miss')) return;
-                            const isHit = Math.random() > 0.7; // Mock logic
-                            this.classList.add(isHit ? 'hit' : 'miss');
-                            if (currentRoomId) {
-                                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-                                updateDoc(roomRef, { lastAction: `Attack ${COLS[c]}${r+1} (${isHit?'Hit':'Miss'})` });
-                            }
-                        };
+                    // --- ENEMY BOARD (Attack View) ---
+                    if (elementId === 'enemyBoard') {
+                        // 1. Draw My Shots
+                        if (myShots.includes(index)) {
+                            // Check Hit against CACHED enemy ships
+                            const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
+                            if (hitShip) cell.classList.add('hit');
+                            else cell.classList.add('miss');
+                        } else if (interactive) {
+                            // Only allow click if not shot yet
+                            cell.onclick = () => handleAttack(index);
+                        }
                     }
                     board.appendChild(cell);
                 }
@@ -603,8 +684,16 @@
                 renderShipList();
                 createGrid('setupBoard', true);
             } else if (screenId === 'battleScreen') {
+                // Initial render, will be updated by snapshot
                 createGrid('enemyBoard', true);
                 createGrid('playerBoard', false);
+            }
+        }
+        
+        window.endGame = async function() {
+            if (confirm("Quit game?")) {
+                if(currentRoomId) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId));
+                location.reload();
             }
         }
 
