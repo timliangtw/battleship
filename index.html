@@ -295,10 +295,10 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.12 (Scroll Chat)";
+        const APP_VERSION = "v1.13 (Auto Clean)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
@@ -417,7 +417,40 @@
         let enemyShots = [];
         let sunkShipsLog = new Set(); 
         
+        let lastChatTime = 0;
         let isProcessingTurn = false;
+
+        // --- NEW: CLEANUP FUNCTION ---
+        async function cleanupOldRooms() {
+            try {
+                // Time limit: 24 hours ago
+                const cutoff = Date.now() - (24 * 60 * 60 * 1000); 
+                const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
+                
+                // Fetch all rooms (Note: For large scale apps, use composite index query. 
+                // But for this project constraint, we fetch and filter in JS as requested)
+                const snapshot = await getDocs(roomsRef);
+                
+                let deletedCount = 0;
+                const batchPromises = [];
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    // Check if old
+                    if (data.createdAt && data.createdAt < cutoff) {
+                        batchPromises.push(deleteDoc(docSnap.ref));
+                        deletedCount++;
+                    }
+                });
+
+                if (batchPromises.length > 0) {
+                    await Promise.all(batchPromises);
+                    console.log(`🧹 Cleanup: Removed ${deletedCount} old rooms.`);
+                }
+            } catch (err) {
+                console.error("Cleanup failed:", err);
+            }
+        }
 
         // --- SETUP LOGIC ---
         window.renderShipList = function() {
@@ -530,9 +563,14 @@
         // --- ROOM LOGIC ---
         window.createRoom = async function() {
             if (!user) return alert("Wait for connection...");
+            
+            // --- LAZY CLEANUP TRIGGER ---
+            cleanupOldRooms();
+
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
+            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
@@ -549,6 +587,7 @@
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
+            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
