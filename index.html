@@ -199,7 +199,8 @@
         </div>
 
         <div id="setupScreen" class="hidden h-full flex gap-4 max-w-6xl mx-auto items-center justify-center">
-            <div class="w-1/3 h-full max-h-[500px] flex flex-col gap-2 bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200">
+            <!-- Sidebar: Fixed narrow width on mobile, 1/3 on larger screens -->
+            <div class="w-48 md:w-1/3 h-full max-h-[500px] flex flex-col gap-2 bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0">
                 <h3 class="text-xl font-bold text-sea-700 text-center">My Fleet</h3>
                 <div class="text-xs text-center text-slate-500 mb-1">Tap board to place/rotate ships.</div>
                 <div id="shipList" class="flex-1 space-y-2 overflow-y-auto pr-1 flex flex-col items-center"></div>
@@ -209,9 +210,12 @@
                 </div>
                 <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">Place all ships!</button>
             </div>
-            <div class="h-full aspect-square max-h-[90vh] bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200 flex flex-col items-center justify-center">
+            
+            <!-- Setup Board: Flex to fill remaining space -->
+            <div class="flex-1 h-full aspect-square max-h-[90vh] bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200 flex flex-col items-center justify-center">
                  <div id="setupBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
             </div>
+            
             <div id="waitingForOpponent" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
                 <div class="bg-white p-6 rounded-2xl text-center shadow-2xl animate-bounce">
                     <h3 class="text-2xl font-bold text-sea-700">Waiting for Opponent...</h3>
@@ -223,8 +227,8 @@
         <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2 relative">
             <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">Waiting...</div>
             
-            <!-- Left Column: Enemy Board -->
-            <div class="h-full aspect-square max-h-[85vh] flex flex-col relative shrink-0">
+            <!-- Left Column: Enemy Board (Flexible width) -->
+            <div class="flex-1 h-full aspect-square max-h-[85vh] flex flex-col relative min-w-0">
                 <div class="flex justify-between items-end mb-2 px-2">
                     <h3 class="text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
                     <button onclick="confirmExit()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Exit</button>
@@ -237,8 +241,8 @@
                 </div>
             </div>
 
-            <!-- Right Column: My Ships & Chat (Scrollable for iPad) -->
-            <div class="w-1/3 h-full max-h-[85vh] flex flex-col gap-2 overflow-y-auto pb-4">
+            <!-- Right Column: My Ships & Chat (Fixed narrow width on mobile) -->
+            <div class="w-48 md:w-1/3 h-full max-h-[85vh] flex flex-col gap-2 overflow-y-auto pb-4 shrink-0">
                 
                 <!-- My Board -->
                 <div class="shrink-0">
@@ -248,7 +252,7 @@
                     </div>
                 </div>
                 
-                <!-- Chat & Status Module (Enhanced with Scroll History) -->
+                <!-- Chat & Status Module -->
                 <div class="flex-1 min-h-[250px] bg-white rounded-3xl shadow p-2 flex flex-col gap-2 border-4 border-sea-100 relative overflow-hidden">
                     
                     <!-- Header -->
@@ -298,7 +302,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.13 (Auto Clean)";
+        const APP_VERSION = "v1.14 (Mobile Layout)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
