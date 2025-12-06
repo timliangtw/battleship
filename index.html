@@ -21,7 +21,6 @@
                     animation: {
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'bounce-slight': 'bounce 0.5s infinite',
-                        'spin-slow': 'spin 3s linear infinite',
                         'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'slide-down': 'slideDown 0.3s ease-out',
                     },
@@ -42,10 +41,11 @@
             user-select: none;
         }
 
+        /* --- GRID STYLES --- */
         .board-container {
             display: grid;
-            grid-template-columns: 1.5rem repeat(10, 1fr); 
-            grid-template-rows: 1.5rem repeat(10, 1fr);
+            grid-template-columns: 1.2rem repeat(10, 1fr); 
+            grid-template-rows: 1.2rem repeat(10, 1fr);
             gap: 1px;
             width: 100%;
             height: 100%;
@@ -64,14 +64,29 @@
             transition: all 0.1s;
             overflow: visible; 
         }
-        
         .grid-cell.occupied { border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 5px rgba(0,0,0,0.2); }
         .grid-cell.hit { background-color: #EF5350 !important; animation: shake 0.5s; }
-        .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; z-index: 10; }
+        .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; z-index: 10; }
         .grid-cell.miss { background-color: #B2EBF2 !important; }
-        .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; opacity: 0.8; z-index: 10; }
+        .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.6rem; opacity: 0.8; z-index: 10; }
 
         @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); } }
+
+        /* --- RESPONSIVE BOARD LOGIC (FAIL-SAFE) --- */
+        /* Mobile Portrait: Width-driven */
+        .mobile-board-sizer {
+            width: 95vw;
+            max-width: 400px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+        }
+        /* Desktop Landscape: Height-driven */
+        .desktop-board-sizer {
+            height: 75vh;
+            max-height: 95%;
+            aspect-ratio: 1 / 1;
+            margin: auto;
+        }
 
         /* --- VFX ANIMATIONS --- */
         .missile { position: absolute; font-size: 3rem; pointer-events: none; filter: drop-shadow(0 0 8px orange); left: 0; top: 0; z-index: 201; }
@@ -79,37 +94,24 @@
         .atomic-wave { position: absolute; left: 0; top: 0; width: 10px; height: 10px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 50%; z-index: 201; pointer-events: none; animation: shockwave 1s ease-out forwards; }
         @keyframes atomic-expand { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; } 10% { transform: translate(-50%, -50%) scale(8); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(10); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(12); opacity: 0; } }
         @keyframes shockwave { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; border-width: 10px; } 100% { transform: translate(-50%, -50%) scale(20); opacity: 0; border-width: 0px; } }
-        .rain { position: absolute; width: 3px; height: 15px; background: #60A5FA; bottom: 100%; animation: fall linear infinite; }
-        @keyframes fall { to { transform: translateY(100vh); } }
+        
         .confetti { position: absolute; width: 12px; height: 12px; bottom: 100%; animation: fall-spin linear infinite; }
         @keyframes fall-spin { to { transform: translateY(100vh) rotate(720deg); } }
+        .rain { position: absolute; width: 3px; height: 15px; background: #60A5FA; bottom: 100%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(100vh); } }
 
         .disabled-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); z-index: 20; display: flex; align-items: center; justify-content: center; border-radius: 1rem; cursor: not-allowed; backdrop-filter: grayscale(0.5); }
         .ship-item { transition: all 0.2s; border: 3px solid transparent; }
         .ship-item.selected { background-color: #FFF9C4; border-color: #FF9800; transform: scale(1.05); }
         .ship-item.placed { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
-        .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
-        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
-        
         .emoji-btn { transition: all 0.1s; }
         .emoji-btn:active { transform: scale(0.8); background-color: #93C5FD; }
-        
-        /* Updated Responsive Square - Mobile Safe */
-        .responsive-square {
-            width: auto;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: 1 / 1;
-            margin: auto;
-        }
+        .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
     </style>
 </head>
 <body class="h-[100dvh] flex flex-col text-slate-700 overflow-hidden">
 
-    <!-- REMOVED ORIENTATION LOCK DIV -->
-
-    <!-- FX Layer -->
     <div id="fx-layer" class="fixed inset-0 pointer-events-none z-[200] overflow-hidden"></div>
 
     <header class="bg-sea-500 text-white p-2 px-4 flex justify-between items-center shadow-md z-50 h-14 shrink-0 relative">
@@ -121,13 +123,13 @@
             <div id="connDot" class="w-3 h-3 rounded-full bg-red-500 transition-colors duration-500"></div>
             <span id="connText" class="text-xs md:text-sm font-bold">Offline</span>
         </div>
-        <div class="text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
+        <div class="text-xs md:text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
             <span class="hidden md:inline">Room: </span><span id="roomIdDisplay" class="text-yellow-300 font-bold">---</span>
         </div>
     </header>
 
-    <!-- MOVED GAME LOG TO TOP (Toast style) to avoid blocking bottom controls -->
-    <div id="gameLog" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur shadow-lg border-2 border-sea-300 px-6 py-2 rounded-full text-sea-700 font-bold text-sm md:text-base z-[150] pointer-events-none transition-all duration-300 opacity-0 scale-95 flex items-center gap-2">
+    <!-- TOAST NOTIFICATION (MOVED TO TOP) -->
+    <div id="gameLog" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur shadow-lg border-2 border-sea-300 px-6 py-2 rounded-full text-sea-700 font-bold text-sm md:text-base z-[150] pointer-events-none transition-all duration-300 opacity-0 scale-95 flex items-center gap-2 whitespace-nowrap shadow-xl">
         <span>Connecting...</span>
     </div>
 
@@ -155,13 +157,11 @@
 
         <!-- Setup Screen -->
         <div id="setupScreen" class="hidden h-full w-full flex flex-col md:flex-row gap-2 justify-center items-stretch">
-            
+            <!-- Sidebar -->
             <div class="w-full md:w-1/3 flex flex-col gap-2 bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0 h-auto md:h-full overflow-visible">
                 <h3 class="text-sm md:text-lg font-bold text-sea-700 text-center">My Fleet</h3>
                 <div class="text-xs text-center text-slate-500 mb-1">Tap board to place/rotate.</div>
-                
                 <div id="shipList" class="flex flex-wrap justify-center gap-2 md:flex-col md:justify-start md:overflow-y-auto w-full"></div>
-                
                 <div class="flex gap-2 mt-2 shrink-0">
                     <button onclick="randomizeShips()" class="flex-1 py-2 bg-blue-500 text-white font-bold rounded-xl shadow active:scale-95 text-xs md:text-sm">Random</button>
                     <button onclick="resetSetup()" class="px-3 py-2 bg-red-400 text-white font-bold rounded-xl shadow active:scale-95"><i class="fa-solid fa-trash"></i></button>
@@ -169,9 +169,15 @@
                 <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-2 md:py-3 bg-gray-400 text-white text-md md:text-lg font-bold rounded-xl shadow-lg transition-all mt-1 shrink-0">Place Ships</button>
             </div>
             
+            <!-- Setup Board Area -->
             <div class="flex-1 flex items-center justify-center bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 overflow-hidden relative min-h-0">
-                 <div class="responsive-square relative">
+                 <!-- Mobile Grid -->
+                 <div class="md:hidden mobile-board-sizer">
                      <div id="setupBoard" class="board-container"></div>
+                 </div>
+                 <!-- Desktop Grid -->
+                 <div class="hidden md:block desktop-board-sizer">
+                     <div id="setupBoardDesktop" class="board-container"></div>
                  </div>
             </div>
             
@@ -186,7 +192,7 @@
         <!-- Battle Screen -->
         <div id="battleScreen" class="hidden h-full w-full flex flex-col md:flex-row gap-2 justify-center items-stretch">
             
-            <!-- Attack Map -->
+            <!-- Attack Map Area -->
             <div class="flex-1 flex flex-col relative min-h-0 shrink-1">
                 <div id="turnBanner" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-40 bg-gray-500 text-white px-4 py-1 rounded-full shadow-lg font-bold text-sm md:text-xl transition-all duration-300 pointer-events-none whitespace-nowrap">Waiting...</div>
                 
@@ -195,10 +201,19 @@
                     <button onclick="confirmExit()" class="bg-red-500 text-white text-[10px] md:text-xs px-2 py-1 rounded-full font-bold hover:bg-red-600">Exit</button>
                 </div>
                 
+                <!-- Board Wrapper -->
                 <div class="flex-1 bg-white p-1 md:p-2 rounded-2xl md:rounded-3xl shadow-xl border-4 border-red-200 relative overflow-hidden flex items-center justify-center">
-                     <div class="responsive-square relative">
+                     <!-- Mobile Grid -->
+                     <div class="md:hidden mobile-board-sizer relative">
                          <div id="enemyBoard" class="board-container"></div>
                          <div id="enemyBoardOverlay" class="disabled-overlay hidden">
+                             <span class="text-white font-bold text-2xl drop-shadow-md">Opponent's Turn</span>
+                         </div>
+                     </div>
+                     <!-- Desktop Grid -->
+                     <div class="hidden md:block desktop-board-sizer relative">
+                         <div id="enemyBoardDesktop" class="board-container"></div>
+                         <div id="enemyBoardOverlayDesktop" class="disabled-overlay hidden">
                              <span class="text-white font-bold text-2xl drop-shadow-md">Opponent's Turn</span>
                          </div>
                      </div>
@@ -228,7 +243,6 @@
                     
                     <div class="shrink-0 relative">
                         <button onclick="toggleEmojiMenu()" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-600 font-bold py-1 rounded-lg text-lg">😀</button>
-                        
                         <div id="emojiMenu" class="hidden absolute bottom-full mb-1 right-0 w-full bg-white border-2 border-sea-300 rounded-xl shadow-xl p-1 grid grid-cols-4 gap-1 animate-slide-up z-50">
                             <button onclick="sendEmoji(this, '👋')" class="emoji-btn bg-gray-50 rounded p-1 text-xl">👋</button>
                             <button onclick="sendEmoji(this, '😂')" class="emoji-btn bg-gray-50 rounded p-1 text-xl">😂</button>
@@ -267,8 +281,11 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.21 (Unlock Portrait)";
+        const APP_VERSION = "v1.23 (Abs Size + Top Toast)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
+
+        // GLOBAL CONSTANT
+        const COLS = ['A','B','C','D','E','F','G','H','I','J'];
 
         // --- AUDIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -319,10 +336,9 @@
                  osc.connect(gain); gain.connect(audioCtx.destination);
                  osc.start(); osc.stop(audioCtx.currentTime + 1.5);
             },
-            victory: () => { // NEW: Victory Music
+            victory: () => { 
                 SoundFX.resume();
                 const now = audioCtx.currentTime;
-                // C major arpeggio: C4, E4, G4, C5
                 [261.63, 329.63, 392.00, 523.25].forEach((freq, i) => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -389,39 +405,27 @@
         let lastChatTime = 0;
         let isProcessingTurn = false;
 
-        // --- NEW: CLEANUP FUNCTION ---
         async function cleanupOldRooms() {
             try {
-                // Time limit: 24 hours ago
                 const cutoff = Date.now() - (24 * 60 * 60 * 1000); 
                 const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
-                
-                // Fetch all rooms (Note: For large scale apps, use composite index query. 
-                // But for this project constraint, we fetch and filter in JS as requested)
                 const snapshot = await getDocs(roomsRef);
-                
                 let deletedCount = 0;
                 const batchPromises = [];
-
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
-                    // Check if old
                     if (data.createdAt && data.createdAt < cutoff) {
                         batchPromises.push(deleteDoc(docSnap.ref));
                         deletedCount++;
                     }
                 });
-
                 if (batchPromises.length > 0) {
                     await Promise.all(batchPromises);
                     console.log(`🧹 Cleanup: Removed ${deletedCount} old rooms.`);
                 }
-            } catch (err) {
-                console.error("Cleanup failed:", err);
-            }
+            } catch (err) { console.error("Cleanup failed:", err); }
         }
 
-        // --- SETUP LOGIC ---
         window.renderShipList = function() {
             const list = document.getElementById('shipList');
             list.innerHTML = '';
@@ -529,17 +533,13 @@
             }
         }
 
-        // --- ROOM LOGIC ---
         window.createRoom = async function() {
             if (!user) return alert("Wait for connection...");
-            
-            // --- LAZY CLEANUP TRIGGER ---
             cleanupOldRooms();
-
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
-            lastChatTime = Date.now(); // Init Chat Time
+            lastChatTime = Date.now();
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
@@ -556,7 +556,7 @@
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
-            lastChatTime = Date.now(); // Init Chat Time
+            lastChatTime = Date.now();
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
@@ -590,7 +590,6 @@
                 if (!docSnap.exists()) { alert("Room deleted."); location.reload(); return; }
                 const data = docSnap.data();
                 
-                // UNLOCK TURN if it's my turn
                 if (data.currentTurn === user.uid) {
                     isProcessingTurn = false;
                 }
@@ -647,24 +646,20 @@
                     }
                 }
                 
-                // --- CHAT LISTENER (UPDATED) ---
                 if (data.chatHistory) {
                     const chatEl = document.getElementById('chatHistory');
-                    // Check if we need to update (simple length check)
-                    const currentCount = chatEl.childElementCount - 1; // Subtract 1 for the placeholder text
+                    const currentCount = chatEl.childElementCount - 1; 
                     if (data.chatHistory.length > (currentCount < 0 ? 0 : currentCount)) {
-                        chatEl.innerHTML = ''; // Clear placeholder
+                        chatEl.innerHTML = ''; 
                         data.chatHistory.forEach(msg => {
                             const isMe = msg.senderUid === user.uid;
                             const bubble = document.createElement('div');
-                            // Styling: Me = Right/Blue, Opponent = Left/White
                             bubble.className = isMe 
                                 ? 'self-end bg-blue-200 text-lg md:text-2xl p-1 md:p-2 rounded-lg rounded-br-none shadow-sm animate-pop-in' 
                                 : 'self-start bg-white text-lg md:text-2xl p-1 md:p-2 rounded-lg rounded-bl-none shadow-sm border border-gray-200 animate-pop-in';
                             bubble.innerText = msg.emoji;
                             chatEl.appendChild(bubble);
                         });
-                        // Auto-scroll to bottom
                         chatEl.scrollTop = chatEl.scrollHeight;
                     }
                 }
@@ -673,25 +668,14 @@
             });
         }
         
-        // --- CHAT FUNCTION (UPDATED) ---
         window.sendEmoji = async function(btn, emoji) {
             if(!currentRoomId) return;
-            
-            // Visual feedback
             btn.classList.add('bg-blue-300', 'scale-95');
             setTimeout(() => btn.classList.remove('bg-blue-300', 'scale-95'), 150);
-            
-            // Close menu
             toggleEmojiMenu();
-
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            // Append to array using arrayUnion
             await updateDoc(roomRef, {
-                chatHistory: arrayUnion({
-                    senderUid: user.uid,
-                    emoji: emoji,
-                    ts: Date.now()
-                })
+                chatHistory: arrayUnion({ senderUid: user.uid, emoji: emoji, ts: Date.now() })
             });
         }
         
@@ -709,8 +693,6 @@
         }
 
         function checkAllSinks(shots, ships, boardId) {
-            // Need to support multiple boards due to RWD duplication
-            // Just check logic once per ship per game
             ships.forEach(ship => {
                 const shipId = `${ship.id}-sunk`; 
                 if (!sunkShipsLog.has(shipId)) {
@@ -720,7 +702,6 @@
                         sunkShipsLog.add(shipId);
                         SoundFX.sink();
                         const centerIdx = indices[Math.floor(indices.length/2)];
-                        // Trigger on active board
                         if (document.getElementById('enemyBoard').offsetParent) triggerAtomicExplosion('enemyBoard', centerIdx);
                         if (document.getElementById('enemyBoardDesktop').offsetParent) triggerAtomicExplosion('enemyBoardDesktop', centerIdx);
                         if (boardId === 'playerBoard') {
@@ -736,8 +717,6 @@
 
         function updateTurnUI(turnUid, status) {
             const banner = document.getElementById('turnBanner');
-            
-            // Handle both mobile and desktop overlays
             const overlays = [document.getElementById('enemyBoardOverlay'), document.getElementById('enemyBoardOverlayDesktop')];
             
             if (status === 'finished') {
@@ -761,17 +740,11 @@
             }
         }
 
-        // --- BATTLE ACTIONS ---
         window.handleAttack = function(index) {
             if (!currentRoomId) return;
             if (myShots.includes(index)) return;
-            
-            // --- FIX 1: TRIGGER LOCK ---
-            if (isProcessingTurn) {
-                console.log("Ignored: Processing previous shot");
-                return;
-            }
-            isProcessingTurn = true; // Lock immediately
+            if (isProcessingTurn) { console.log("Ignored"); return; }
+            isProcessingTurn = true; 
 
             SoundFX.launch();
             triggerMissileAnimation(index);
@@ -779,35 +752,18 @@
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             getDoc(roomRef).then(snap => {
                 const data = snap.data();
-                // Double check validity
-                if (data.currentTurn !== user.uid) {
-                    isProcessingTurn = false; // Unlock if invalid
-                    return; 
-                }
-                
+                if (data.currentTurn !== user.uid) { isProcessingTurn = false; return; }
                 const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
                 const newMove = { uid: user.uid, index: index };
-                
                 setTimeout(() => {
-                    updateDoc(roomRef, {
-                        moves: arrayUnion(newMove),
-                        currentTurn: nextTurn,
-                        lastAction: `Shot fired!`
-                    });
-                    // Note: isProcessingTurn remains TRUE here. 
-                    // It will be set to FALSE in listenToRoom when currentTurn becomes ME again.
-                    
+                    updateDoc(roomRef, { moves: arrayUnion(newMove), currentTurn: nextTurn, lastAction: `Shot fired!` });
                     const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-                    if(hitShip) SoundFX.boom();
-                    else SoundFX.splash();
-                    
+                    if(hitShip) SoundFX.boom(); else SoundFX.splash();
                 }, 600); 
             });
         }
 
-        // --- VISUALS ---
         function triggerMissileAnimation(targetIndex) {
-            // Pick the active board (Mobile or Desktop)
             let board = document.getElementById('enemyBoard');
             if (!board || !board.offsetParent) board = document.getElementById('enemyBoardDesktop');
             
@@ -817,26 +773,19 @@
             const rect = targetCell.getBoundingClientRect();
             const startX = window.innerWidth / 2;
             const startY = window.innerHeight;
-            
             const targetX = rect.left + rect.width / 2;
             const targetY = rect.top + rect.height / 2;
 
             const missile = document.createElement('div');
             missile.className = 'missile';
             missile.innerText = '🚀';
-            
-            // --- FIX 2: APPEND TO FX LAYER ---
             document.getElementById('fx-layer').appendChild(missile);
 
             missile.animate([
                 { transform: `translate(${startX}px, ${startY}px) scale(0.5) rotate(-45deg)`, opacity: 0 },
                 { transform: `translate(${startX}px, ${startY}px) scale(0.5) rotate(-45deg)`, opacity: 1, offset: 0.1 },
                 { transform: `translate(${targetX}px, ${targetY}px) scale(2.5) rotate(-45deg)`, opacity: 1 }
-            ], {
-                duration: 600,
-                easing: 'ease-in',
-                fill: 'forwards'
-            });
+            ], { duration: 600, easing: 'ease-in', fill: 'forwards' });
 
             setTimeout(() => missile.remove(), 600);
         }
@@ -850,19 +799,13 @@
             const rect = cell.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-
-            // --- FIX 2: APPEND TO FX LAYER ---
             const container = document.getElementById('fx-layer');
 
             const core = document.createElement('div');
             core.className = 'atomic-core';
-            // Need manual positioning since it's now in FX layer
             core.style.transform = `translate(${centerX}px, ${centerY}px) scale(0)`;
-            // Wait, CSS animation uses translate(-50%, -50%). 
-            // We need to set left/top to center, and let animation handle expand from there.
             core.style.left = centerX + 'px';
             core.style.top = centerY + 'px';
-            
             container.appendChild(core); 
 
             const wave = document.createElement('div');
@@ -885,9 +828,7 @@
             confetti.innerHTML = ''; 
 
             if (winnerUid === user.uid) {
-                // NEW: Play Victory Music
                 SoundFX.victory();
-                
                 title.innerText = "VICTORY!";
                 title.className = "text-5xl font-bold text-yellow-500 mb-2 drop-shadow-lg";
                 sub.innerText = "You sank the entire fleet!";
@@ -917,11 +858,7 @@
             }
         }
 
-        const COLS = ['A','B','C','D','E','F','G','H','I','J'];
-
-        // Updated function to create multiple grids
         function updateGrids() {
-            // Helper to generate a single grid
             const generate = (elementId, isInteractive, isSetup, isPlayer) => {
                 const board = document.getElementById(elementId);
                 if (!board) return;
@@ -949,7 +886,6 @@
                                 else cell.classList.add('miss');
                             }
                         } else {
-                            // Enemy Board
                             if (myShots.includes(index)) {
                                 const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                                 if (hitShip) cell.classList.add('hit');
@@ -963,12 +899,11 @@
                 }
             };
 
-            // Call for all possible grids
-            generate('setupBoard', true, true, false); // Mobile Setup
-            generate('setupBoardDesktop', true, true, false); // Desktop Setup
-            generate('playerBoard', false, false, true); // Player Status
-            generate('enemyBoard', true, false, false); // Mobile Battle
-            generate('enemyBoardDesktop', true, false, false); // Desktop Battle
+            generate('setupBoard', true, true, false); 
+            generate('setupBoardDesktop', true, true, false); 
+            generate('playerBoard', false, false, true); 
+            generate('enemyBoard', true, false, false); 
+            generate('enemyBoardDesktop', true, false, false); 
         }
 
         function createLabel(text) {
