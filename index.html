@@ -248,17 +248,19 @@
                     </div>
                 </div>
                 
-                <!-- NEW: Chat & Status Module (Ensured min-height) -->
-                <div class="flex-1 min-h-[250px] bg-white rounded-3xl shadow p-2 flex flex-col gap-2 border-4 border-sea-100 relative">
-                    <!-- Opponent Status / Chat Bubble -->
-                    <div class="flex-1 flex flex-col justify-center items-center bg-sea-100 rounded-xl p-2 w-full relative">
-                        <div class="text-slate-400 text-xs font-bold uppercase mb-1">Opponent Says:</div>
-                        <div id="chatDisplay" class="text-4xl">...</div>
-                        <div id="opponentNameDisplay" class="text-xs text-sea-700 font-bold mt-1">Waiting...</div>
+                <!-- Chat & Status Module (Enhanced with Scroll History) -->
+                <div class="flex-1 min-h-[250px] bg-white rounded-3xl shadow p-2 flex flex-col gap-2 border-4 border-sea-100 relative overflow-hidden">
+                    
+                    <!-- Header -->
+                    <div id="opponentNameDisplay" class="text-xs text-sea-700 font-bold text-center shrink-0">Waiting...</div>
+
+                    <!-- Scrollable Chat History -->
+                    <div id="chatHistory" class="flex-1 flex flex-col gap-2 bg-sea-100 rounded-xl p-2 w-full overflow-y-auto scroll-smooth">
+                        <div class="text-center text-slate-400 text-xs italic">Start chatting!</div>
                     </div>
                     
                     <!-- My Emoji Keyboard -->
-                    <div class="grid grid-cols-4 gap-1 w-full">
+                    <div class="grid grid-cols-4 gap-1 w-full shrink-0">
                         <button onclick="sendEmoji(this, '👋')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">👋</button>
                         <button onclick="sendEmoji(this, '😂')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😂</button>
                         <button onclick="sendEmoji(this, '😎')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-2xl">😎</button>
@@ -272,7 +274,7 @@
             </div>
         </div>
         
-        <!-- Game Over Modal (Removed bounce animation) -->
+        <!-- Game Over Modal -->
         <div id="gameOverModal" class="hidden absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md overflow-hidden">
             <div id="confettiContainer" class="absolute inset-0 pointer-events-none"></div>
             <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border-4 border-yellow-400 relative z-10">
@@ -296,7 +298,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.11 (Layout Fix)";
+        const APP_VERSION = "v1.12 (Scroll Chat)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
@@ -415,10 +417,6 @@
         let enemyShots = [];
         let sunkShipsLog = new Set(); 
         
-        // --- NEW CHAT STATE ---
-        let lastChatTime = 0;
-        
-        // --- NEW LOCK VARIABLE ---
         let isProcessingTurn = false;
 
         // --- SETUP LOGIC ---
@@ -535,7 +533,6 @@
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
-            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
@@ -552,7 +549,6 @@
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
-            lastChatTime = Date.now(); // Init Chat Time
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
@@ -643,15 +639,25 @@
                     }
                 }
                 
-                // --- CHAT LISTENER ---
-                if (data.chat && data.chat.ts > lastChatTime) {
-                    lastChatTime = data.chat.ts;
-                    if (data.chat.senderUid !== user.uid) {
-                        const display = document.getElementById('chatDisplay');
-                        display.innerText = data.chat.emoji;
-                        display.classList.remove('animate-pop-in');
-                        void display.offsetWidth; // Trigger reflow
-                        display.classList.add('animate-pop-in');
+                // --- CHAT LISTENER (UPDATED) ---
+                if (data.chatHistory) {
+                    const chatEl = document.getElementById('chatHistory');
+                    // Check if we need to update (simple length check)
+                    const currentCount = chatEl.childElementCount - 1; // Subtract 1 for the placeholder text
+                    if (data.chatHistory.length > (currentCount < 0 ? 0 : currentCount)) {
+                        chatEl.innerHTML = ''; // Clear placeholder
+                        data.chatHistory.forEach(msg => {
+                            const isMe = msg.senderUid === user.uid;
+                            const bubble = document.createElement('div');
+                            // Styling: Me = Right/Blue, Opponent = Left/White
+                            bubble.className = isMe 
+                                ? 'self-end bg-blue-200 text-2xl p-2 rounded-lg rounded-br-none shadow-sm animate-pop-in' 
+                                : 'self-start bg-white text-2xl p-2 rounded-lg rounded-bl-none shadow-sm border border-gray-200 animate-pop-in';
+                            bubble.innerText = msg.emoji;
+                            chatEl.appendChild(bubble);
+                        });
+                        // Auto-scroll to bottom
+                        chatEl.scrollTop = chatEl.scrollHeight;
                     }
                 }
                 
@@ -668,13 +674,13 @@
             setTimeout(() => btn.classList.remove('bg-blue-300', 'scale-95'), 150);
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            // Simple update to "chat" field
+            // Append to array using arrayUnion
             await updateDoc(roomRef, {
-                chat: {
+                chatHistory: arrayUnion({
                     senderUid: user.uid,
                     emoji: emoji,
                     ts: Date.now()
-                }
+                })
             });
         }
         
