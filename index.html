@@ -195,8 +195,8 @@
         <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2 relative">
             
             <!-- Turn Banner -->
-            <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-orange-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">
-                Initializing...
+            <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">
+                Waiting...
             </div>
 
             <!-- Big Attack Map -->
@@ -230,6 +230,9 @@
 
     </main>
     
+    <!-- Version Label -->
+    <div id="versionLabel" class="fixed bottom-1 right-1 text-xs text-slate-400 pointer-events-none z-50"></div>
+
     <footer id="gameLog" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg text-lg font-bold text-sea-700 pointer-events-none transition-all duration-300 z-50 border-2 border-sea-200 whitespace-nowrap">
         Connecting...
     </footer>
@@ -239,6 +242,10 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+        // --- VERSION CONTROL ---
+        const APP_VERSION = "v1.2 (Sync Fix)";
+        document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- 1. CONFIG ---
         const firebaseConfig = {
@@ -460,6 +467,14 @@
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
                 if (roomSnap.exists()) {
+                    const data = roomSnap.data();
+                    
+                    // --- SAME USER ID DETECTION ---
+                    if (data.host.uid === user.uid) {
+                        alert("⚠️ Testing Warning: You are joining your own room with the same account!\n\nPlease use 'Incognito Mode' (無痕視窗) or a different device for the second player.");
+                        return; // Prevent joining to avoid confusion
+                    }
+
                     await updateDoc(roomRef, { 
                         "guest.uid": user.uid, 
                         "guest.name": name,
@@ -551,9 +566,18 @@
         }
         
         function updateTurnUI(turnUid) {
-            const isMyTurn = turnUid === user.uid;
             const banner = document.getElementById('turnBanner');
             const overlay = document.getElementById('enemyBoardOverlay');
+            
+            if (!turnUid) {
+                 // Game just started, waiting for sync
+                 banner.innerText = "Flipping Coin...";
+                 banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl";
+                 overlay.classList.remove('hidden');
+                 return;
+            }
+
+            const isMyTurn = turnUid === user.uid;
             
             if (isMyTurn) {
                 banner.innerText = "YOUR TURN!";
@@ -580,23 +604,7 @@
             
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             
-            // Toggle Turn
-            // Note: We need to know who the other player is.
-            // Simplified: Just set currentTurn to "not me" isn't enough, we need the UID.
-            // We can fetch the doc to be sure, or rely on local state.
-            // Let's assume we toggle based on cached data would be risky. 
-            // Better: use a Cloud Function or just read from local cache of 'listenToRoom'.
-            // For this simple client-side: we just stored host/guest UIDs.
-            
-            // We need to fetch current state to know opponent UID safely? 
-            // We can assume we know who we are (Host or Guest).
-            
-            // Wait, we don't have opponent UID stored globally easily. Let's fix that.
-            // Actually 'listenToRoom' has data.host.uid etc.
-            // Let's rely on the fact that if I am host, next turn is Guest.
-            
-            // Let's find opponent UID from a dirty trick: snapshot data isn't global.
-            // We will fetch doc strictly to ensure consistency.
+            // Toggle Turn logic
             getDoc(roomRef).then(snap => {
                 const data = snap.data();
                 if (data.currentTurn !== user.uid) return; // Not my turn
@@ -659,7 +667,12 @@
                             const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                             if (hitShip) cell.classList.add('hit');
                             else cell.classList.add('miss');
-                        } else if (interactive) {
+                        } 
+                        
+                        // 2. IMPORTANT: Do NOT draw enemy shots here (requested by user)
+                        // This logic ensures only 'myShots' are drawn.
+                        
+                        else if (interactive) {
                             // Only allow click if not shot yet
                             cell.onclick = () => handleAttack(index);
                         }
