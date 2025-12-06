@@ -23,10 +23,12 @@
                         'bounce-slight': 'bounce 0.5s infinite',
                         'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'slide-down': 'slideDown 0.3s ease-out',
+                        'slide-up': 'slideUp 0.2s ease-out',
                     },
                     keyframes: {
                         popIn: { '0%': { transform: 'scale(0)' }, '100%': { transform: 'scale(1)' } },
-                        slideDown: { '0%': { transform: 'translateY(-100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } }
+                        slideDown: { '0%': { transform: 'translateY(-100%)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
+                        slideUp: { '0%': { transform: 'translateY(10px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } }
                     }
                 }
             }
@@ -244,9 +246,12 @@
                         <div class="text-center text-slate-400 text-xs italic">Chat here!</div>
                     </div>
                     
-                    <div class="shrink-0 relative">
-                        <button onclick="toggleEmojiMenu()" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-600 font-bold py-1 rounded-lg text-lg">😀</button>
-                        <div id="emojiMenu" class="hidden absolute bottom-full mb-1 right-0 w-full bg-white border-2 border-sea-300 rounded-xl shadow-xl p-1 grid grid-cols-4 gap-1 animate-slide-up z-50">
+                    <div class="shrink-0 relative md:static md:mt-auto">
+                        <!-- Mobile Toggle Button (Hidden on md+) -->
+                        <button onclick="toggleEmojiMenu()" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-600 font-bold py-1 rounded-lg text-lg md:hidden">😀</button>
+                        
+                        <!-- Emoji Menu: Hidden on Mobile (toggled), Always visible on Desktop (md:grid) -->
+                        <div id="emojiMenu" class="hidden absolute bottom-full mb-1 right-0 w-full bg-white border-2 border-sea-300 rounded-xl shadow-xl p-1 grid grid-cols-4 gap-1 animate-slide-up z-50 md:grid md:static md:shadow-none md:border-0 md:bg-transparent md:mb-0 md:animate-none md:mt-2">
                             <button onclick="sendEmoji(this, '👋')" class="emoji-btn bg-gray-50 rounded p-1 text-xl">👋</button>
                             <button onclick="sendEmoji(this, '😂')" class="emoji-btn bg-gray-50 rounded p-1 text-xl">😂</button>
                             <button onclick="sendEmoji(this, '😎')" class="emoji-btn bg-gray-50 rounded p-1 text-xl">😎</button>
@@ -284,7 +289,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.24 (Fixes: Race/Audio/Random/DoubleTap)";
+        const APP_VERSION = "v1.25 (ExpandedChat+Sound)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -371,6 +376,20 @@
                     osc.connect(gain); gain.connect(audioCtx.destination);
                     osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.4);
                 });
+            },
+            // NEW: Notification sound for chat
+            ping: () => {
+                SoundFX.ensureContext();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
             }
         };
 
@@ -426,6 +445,7 @@
         
         let lastChatTime = 0;
         let isProcessingTurn = false;
+        let previousChatLength = 0; // NEW: Track chat length for sound notification
 
         async function cleanupOldRooms() {
             try {
@@ -614,6 +634,8 @@
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
             lastChatTime = Date.now();
+            // Reset chat tracker for new room
+            previousChatLength = 0; 
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
@@ -663,6 +685,8 @@
 
                 // If transaction succeeds:
                 currentRoomId = roomId; isHost = false;
+                // Reset chat tracker for joined room
+                previousChatLength = 0;
                 document.getElementById('roomIdDisplay').innerText = roomId;
                 switchScreen('setupScreen'); listenToRoom(roomId);
 
@@ -753,8 +777,20 @@
                 
                 if (data.chatHistory) {
                     const chatEl = document.getElementById('chatHistory');
-                    const currentCount = chatEl.childElementCount - 1; 
-                    if (data.chatHistory.length > (currentCount < 0 ? 0 : currentCount)) {
+                    const newCount = data.chatHistory.length;
+                    
+                    // NEW: Sound notification logic
+                    if (newCount > previousChatLength) {
+                        // Get the latest message
+                        const lastMsg = data.chatHistory[newCount - 1];
+                        // If it's from the opponent AND we are not in initial load (initial load previousChatLength is 0)
+                        if (previousChatLength > 0 && lastMsg.senderUid !== user.uid) {
+                            SoundFX.ping(); // Play notification sound
+                        }
+                    }
+
+                    // Render Chat
+                    if (newCount > (chatEl.childElementCount - 1 < 0 ? 0 : chatEl.childElementCount - 1)) {
                         chatEl.innerHTML = ''; 
                         data.chatHistory.forEach(msg => {
                             const isMe = msg.senderUid === user.uid;
@@ -767,6 +803,9 @@
                         });
                         chatEl.scrollTop = chatEl.scrollHeight;
                     }
+
+                    // Update tracker
+                    previousChatLength = newCount;
                 }
                 
                 if (data.lastAction) updateLog(`🔔 ${data.lastAction}`);
@@ -778,7 +817,12 @@
             initAudio();
             btn.classList.add('bg-blue-300', 'scale-95');
             setTimeout(() => btn.classList.remove('bg-blue-300', 'scale-95'), 150);
-            toggleEmojiMenu();
+            
+            // Only hide menu on mobile
+            if (window.innerWidth < 768) {
+                toggleEmojiMenu();
+            }
+
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             await updateDoc(roomRef, {
                 chatHistory: arrayUnion({ senderUid: user.uid, emoji: emoji, ts: Date.now() })
