@@ -69,6 +69,9 @@
         .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; z-index: 10; }
         .grid-cell.miss { background-color: #B2EBF2 !important; }
         .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.6rem; opacity: 0.8; z-index: 10; }
+        
+        /* FIX 5: Disable clicks visually */
+        .grid-disabled { pointer-events: none; opacity: 0.8; cursor: not-allowed; }
 
         @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); } }
 
@@ -278,23 +281,39 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.23 (Abs Size + Top Toast)";
+        const APP_VERSION = "v1.24 (Fixes: Race/Audio/Random/DoubleTap)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
         const COLS = ['A','B','C','D','E','F','G','H','I','J'];
 
-        // --- AUDIO ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioContext();
+        // --- AUDIO (FIX 3: LAZY INIT) ---
+        // FIX: Remove global AudioContext creation to prevent autoplay policy errors
+        let audioCtx = null;
+        
+        // Function to initialize audio on first user interaction
+        function initAudio() {
+            if (audioCtx) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                // Resume immediately in case it's suspended
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                console.log("🔊 Audio Context Initialized");
+            } catch (e) { console.error("Audio init error", e); }
+        }
 
         const SoundFX = {
-            resume: () => { if (audioCtx.state === 'suspended') audioCtx.resume(); },
+            ensureContext: () => {
+                if (!audioCtx) initAudio();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            },
             playNoise: (duration, type = 'highpass') => {
-                SoundFX.resume();
+                SoundFX.ensureContext();
+                if (!audioCtx) return;
                 const bufferSize = audioCtx.sampleRate * duration;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
@@ -311,7 +330,8 @@
                 noise.start();
             },
             launch: () => {
-                SoundFX.resume();
+                SoundFX.ensureContext();
+                if (!audioCtx) return;
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.frequency.setValueAtTime(200, audioCtx.currentTime);
@@ -324,7 +344,8 @@
             boom: () => SoundFX.playNoise(0.3, 'lowpass'),
             splash: () => SoundFX.playNoise(0.3, 'highpass'),
             sink: () => {
-                 SoundFX.resume();
+                 SoundFX.ensureContext();
+                 if (!audioCtx) return;
                  SoundFX.playNoise(2.0, 'lowpass');
                  const osc = audioCtx.createOscillator();
                  const gain = audioCtx.createGain();
@@ -337,7 +358,8 @@
                  osc.start(); osc.stop(audioCtx.currentTime + 1.5);
             },
             victory: () => { 
-                SoundFX.resume();
+                SoundFX.ensureContext();
+                if (!audioCtx) return;
                 const now = audioCtx.currentTime;
                 [261.63, 329.63, 392.00, 523.25].forEach((freq, i) => {
                     const osc = audioCtx.createOscillator();
@@ -499,21 +521,72 @@
             return true;
         }
 
+        // FIX 4: ROBUST RANDOM PLACEMENT (Prevent Infinite Loop)
         window.randomizeShips = function() {
-            placedShips = [];
-            for (let ship of FLEET_TYPES) {
-                let placed = false; let attempts = 0;
-                while (!placed && attempts < 100) {
-                    const idx = Math.floor(Math.random() * 100);
-                    const horiz = Math.random() > 0.5;
-                    if (isValidPlacement(idx, ship.size, horiz)) {
-                        placedShips.push({ id: ship.id, name: ship.name, size: ship.size, color: ship.color, index: idx, horizontal: horiz });
-                        placed = true;
+            let success = false;
+            let attempts = 0;
+            const MAX_TOTAL_ATTEMPTS = 20;
+
+            while (!success && attempts < MAX_TOTAL_ATTEMPTS) {
+                attempts++;
+                let tempPlaced = [];
+                let thisAttemptSuccess = true;
+
+                for (let ship of FLEET_TYPES) {
+                    let placed = false;
+                    let shipAttempts = 0;
+                    // Try to place this single ship up to 50 times
+                    while (!placed && shipAttempts < 50) {
+                        const idx = Math.floor(Math.random() * 100);
+                        const horiz = Math.random() > 0.5;
+                        
+                        // Check validity against tempPlaced
+                        let valid = true;
+                        let r = Math.floor(idx / 10);
+                        let c = idx % 10;
+                        if (horiz && c + ship.size > 10) valid = false;
+                        if (!horiz && r + ship.size > 10) valid = false;
+                        
+                        if (valid) {
+                             const newIndices = [];
+                             for(let i=0; i<ship.size; i++) newIndices.push(horiz ? idx+i : idx+(i*10));
+                             
+                             for (let s of tempPlaced) {
+                                 const existingIndices = [];
+                                 let sr = Math.floor(s.index / 10);
+                                 let sc = s.index % 10;
+                                 for(let i=0; i<s.size; i++) existingIndices.push(s.horizontal ? s.index+i : s.index+(i*10));
+                                 
+                                 if (newIndices.some(n => existingIndices.includes(n))) {
+                                     valid = false; break;
+                                 }
+                             }
+                        }
+
+                        if (valid) {
+                            tempPlaced.push({ id: ship.id, name: ship.name, size: ship.size, color: ship.color, index: idx, horizontal: horiz });
+                            placed = true;
+                        }
+                        shipAttempts++;
                     }
-                    attempts++;
+
+                    if (!placed) {
+                        thisAttemptSuccess = false;
+                        break; // Break ship loop, start over total attempt
+                    }
+                }
+
+                if (thisAttemptSuccess && tempPlaced.length === FLEET_TYPES.length) {
+                    placedShips = tempPlaced;
+                    success = true;
                 }
             }
-            renderShipList(); updateGrids();
+
+            if (success) {
+                renderShipList(); updateGrids();
+            } else {
+                updateLog("⚠️ Random placement failed. Try again.");
+            }
         }
 
         window.resetSetup = function() { placedShips = []; selectedShipType = null; renderShipList(); updateGrids(); }
@@ -535,6 +608,7 @@
 
         window.createRoom = async function() {
             if (!user) return alert("Wait for connection...");
+            initAudio(); // FIX 3: Unlock Audio
             cleanupOldRooms();
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
@@ -551,31 +625,56 @@
             } catch (err) { console.error(err); alert("Create Error. Check Rules."); }
         };
 
+        // FIX 1: RACE CONDITION via Transaction
         window.joinRoom = async function() {
             if (!user) return;
+            initAudio(); // FIX 3: Unlock Audio
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
-            lastChatTime = Date.now();
+            
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-                const roomSnap = await getDoc(roomRef);
-                if (roomSnap.exists()) {
-                    const data = roomSnap.data();
-                    if (data.host.uid === user.uid) { alert("⚠️ Use different device!"); return; }
-                    await updateDoc(roomRef, { 
+                
+                await runTransaction(db, async (transaction) => {
+                    const roomDoc = await transaction.get(roomRef);
+                    if (!roomDoc.exists()) {
+                        throw "Room does not exist!";
+                    }
+
+                    const data = roomDoc.data();
+                    
+                    // Host check
+                    if (data.host.uid === user.uid) {
+                         throw "⚠️ You cannot join your own room (same device).";
+                    }
+
+                    // Full check
+                    if (data.guest && data.guest.uid) {
+                        throw "⚠️ Room is full!";
+                    }
+
+                    // Safe to write
+                    transaction.update(roomRef, { 
                         "guest.uid": user.uid, "guest.name": name, "guest.ready": false, "guest.left": false,
                         status: 'setup', lastAction: 'Joined' 
                     });
-                    currentRoomId = roomId; isHost = false;
-                    document.getElementById('roomIdDisplay').innerText = roomId;
-                    switchScreen('setupScreen'); listenToRoom(roomId);
-                } else { alert("Room not found!"); }
-            } catch (err) { console.error(err); }
+                });
+
+                // If transaction succeeds:
+                currentRoomId = roomId; isHost = false;
+                document.getElementById('roomIdDisplay').innerText = roomId;
+                switchScreen('setupScreen'); listenToRoom(roomId);
+
+            } catch (err) { 
+                console.error(err); 
+                alert(typeof err === 'string' ? err : "Join Failed. Try again.");
+            }
         };
 
         window.setReady = async function() {
             if (!currentRoomId) return;
+            initAudio(); // Ensure audio is ready
             document.getElementById('startGameBtn').disabled = true;
             document.getElementById('startGameBtn').innerText = "Waiting...";
             document.getElementById('waitingForOpponent').classList.remove('hidden');
@@ -590,8 +689,14 @@
                 if (!docSnap.exists()) { alert("Room deleted."); location.reload(); return; }
                 const data = docSnap.data();
                 
+                // If it's my turn, unlock the board
                 if (data.currentTurn === user.uid) {
                     isProcessingTurn = false;
+                    // FIX 5: Remove disabled visual
+                    document.querySelectorAll('.board-container').forEach(el => el.classList.remove('grid-disabled'));
+                } else {
+                    // Lock board if not my turn
+                    document.querySelectorAll('.board-container').forEach(el => el.classList.add('grid-disabled'));
                 }
 
                 if (data.host?.ready && data.guest?.ready && data.status !== 'playing' && data.status !== 'finished') {
@@ -670,6 +775,7 @@
         
         window.sendEmoji = async function(btn, emoji) {
             if(!currentRoomId) return;
+            initAudio();
             btn.classList.add('bg-blue-300', 'scale-95');
             setTimeout(() => btn.classList.remove('bg-blue-300', 'scale-95'), 150);
             toggleEmojiMenu();
@@ -743,8 +849,11 @@
         window.handleAttack = function(index) {
             if (!currentRoomId) return;
             if (myShots.includes(index)) return;
-            if (isProcessingTurn) { console.log("Ignored"); return; }
+            if (isProcessingTurn) { console.log("Ignored double tap"); return; }
+            
+            // FIX 5: IMMEDIATE LOCK
             isProcessingTurn = true; 
+            document.querySelectorAll('.board-container').forEach(el => el.classList.add('grid-disabled'));
 
             SoundFX.launch();
             triggerMissileAnimation(index);
@@ -756,7 +865,13 @@
                 const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
                 const newMove = { uid: user.uid, index: index };
                 setTimeout(() => {
-                    updateDoc(roomRef, { moves: arrayUnion(newMove), currentTurn: nextTurn, lastAction: `Shot fired!` });
+                    updateDoc(roomRef, { moves: arrayUnion(newMove), currentTurn: nextTurn, lastAction: `Shot fired!` })
+                    .catch(e => {
+                        // In case of write failure, unlock
+                        isProcessingTurn = false;
+                        document.querySelectorAll('.board-container').forEach(el => el.classList.remove('grid-disabled'));
+                    });
+                    
                     const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                     if(hitShip) SoundFX.boom(); else SoundFX.splash();
                 }, 600); 
