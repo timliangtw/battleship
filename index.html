@@ -67,18 +67,18 @@
         
         /* Ship Styling */
         .grid-cell.occupied {
-            background-color: #FFB74D;
-            border-color: #FFA726;
+            /* background-color: #FFB74D;  REMOVED default color to allow custom colors */
+            border-color: rgba(255, 255, 255, 0.5);
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
         .grid-cell.occupied.preview {
-            background-color: rgba(255, 183, 77, 0.5); /* Ghost preview */
+            opacity: 0.5; /* Ghost preview */
         }
         
         /* Hit/Miss Effects */
-        .grid-cell.hit { background-color: #EF5350; animation: shake 0.5s; }
+        .grid-cell.hit { background-color: #EF5350 !important; animation: shake 0.5s; }
         .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; }
-        .grid-cell.miss { background-color: #B2EBF2; }
+        .grid-cell.miss { background-color: #B2EBF2 !important; }
         .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; opacity: 0.8; }
 
         @keyframes shake {
@@ -553,7 +553,7 @@
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                         if (ship) {
                             cell.classList.add('occupied');
-                            // Use ship specific color if desired, currently using standard orange
+                            cell.classList.add(ship.color); // Apply specific color
                         }
                         
                         // Setup Click Interaction
@@ -566,7 +566,10 @@
                     if (elementId === 'playerBoard') {
                         // Render placed ships for player view
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-                        if (ship) cell.classList.add('occupied');
+                        if (ship) {
+                            cell.classList.add('occupied');
+                            cell.classList.add(ship.color); // Apply specific color
+                        }
                     }
                     
                     if (elementId === 'enemyBoard' && interactive) {
