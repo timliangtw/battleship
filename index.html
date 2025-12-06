@@ -21,6 +21,7 @@
                     animation: {
                         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'bounce-slight': 'bounce 0.5s infinite',
+                        'spin-slow': 'spin 3s linear infinite',
                     }
                 }
             }
@@ -54,7 +55,7 @@
             grid-template-columns: 20px repeat(10, 1fr); 
             grid-template-rows: 20px repeat(10, 1fr);
             gap: 2px;
-            position: relative; /* For absolute animations */
+            position: relative; 
         }
         .label-cell {
             display: flex; align-items: center; justify-content: center;
@@ -71,85 +72,55 @@
             overflow: visible;
         }
         
-        /* Ship Styling */
-        .grid-cell.occupied {
-            border-color: rgba(255, 255, 255, 0.5);
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
-        }
+        .grid-cell.occupied { border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 5px rgba(0,0,0,0.2); }
         .grid-cell.occupied.preview { opacity: 0.5; }
         
-        /* Hit/Miss Effects */
         .grid-cell.hit { background-color: #EF5350 !important; animation: shake 0.5s; }
         .grid-cell.hit::after { content: '💥'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; z-index: 10; }
         .grid-cell.miss { background-color: #B2EBF2 !important; }
         .grid-cell.miss::after { content: '💦'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1rem; opacity: 0.8; z-index: 10; }
 
-        @keyframes shake {
-            0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); }
-        }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(0, 0); } }
 
-        /* --- ANIMATIONS --- */
-        
-        /* Missile */
+        /* --- VFX ANIMATIONS --- */
         .missile {
-            position: fixed;
-            font-size: 2rem;
-            z-index: 100;
-            pointer-events: none;
-            filter: drop-shadow(0 0 5px orange);
-            transform: rotate(-45deg); /* Rocket pointing up-right usually, adjust to straight up */
-        }
-        @keyframes fly-missile {
-            0% { transform: translateY(0) scale(0.5); opacity: 0; }
-            10% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { transform: translateY(-60vh) scale(0.8); opacity: 0; }
+            position: fixed; font-size: 3rem; z-index: 100; pointer-events: none;
+            filter: drop-shadow(0 0 8px orange);
+            /* Transform is handled by JS Web Animation API */
         }
 
-        /* Mushroom Cloud */
         .mushroom-cloud {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            font-size: 4rem;
-            z-index: 50;
-            pointer-events: none;
-            animation: explode-cloud 2s forwards;
-            filter: drop-shadow(0 0 10px red);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            font-size: 6rem; /* BIGGER */
+            z-index: 60; pointer-events: none;
+            animation: explode-cloud 2s forwards; filter: drop-shadow(0 0 15px red);
+            text-shadow: 0 0 10px orange;
         }
         @keyframes explode-cloud {
             0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-            20% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
-            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
-        }
-        
-        .hit-spark {
-            position: absolute; top:50%; left:50%; transform: translate(-50%,-50%);
-            width: 100%; height: 100%; border-radius: 50%;
-            background: radial-gradient(circle, yellow, red, transparent);
-            animation: spark-anim 0.5s ease-out;
-            z-index: 20;
-            pointer-events: none;
-        }
-        @keyframes spark-anim {
-            0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
-            100% { transform: translate(-50%,-50%) scale(2); opacity: 0; }
+            10% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            40% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
         }
 
-        /* Turn Indicator Overlay */
+        /* Rain for loser */
+        .rain { position: absolute; width: 3px; height: 15px; background: #60A5FA; bottom: 100%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(100vh); } }
+
+        /* Confetti for winner */
+        .confetti { position: absolute; width: 12px; height: 12px; bottom: 100%; animation: fall-spin linear infinite; }
+        @keyframes fall-spin { to { transform: translateY(100vh) rotate(720deg); } }
+
         .disabled-overlay {
             position: absolute; inset: 0; background: rgba(0,0,0,0.2); z-index: 20;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 1rem; cursor: not-allowed;
-            backdrop-filter: grayscale(0.5);
+            border-radius: 1rem; cursor: not-allowed; backdrop-filter: grayscale(0.5);
         }
 
-        /* Sidebar Ship Item */
         .ship-item { transition: all 0.2s; border: 3px solid transparent; }
         .ship-item.selected { background-color: #FFF9C4; border-color: #FF9800; transform: scale(1.05); }
         .ship-item.placed { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 
-        /* Connection Dot */
         .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
         @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
     </style>
@@ -167,21 +138,19 @@
             <i class="fa-solid fa-ship text-2xl text-yellow-300"></i>
             <h1 class="text-2xl font-bold tracking-wide text-white drop-shadow-md">Sea Battle</h1>
         </div>
-        
         <div class="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
             <div id="connDot" class="w-3 h-3 rounded-full bg-red-500 transition-colors duration-500"></div>
             <span id="connText" class="text-sm font-bold">Offline</span>
         </div>
-
         <div class="text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
             Room: <span id="roomIdDisplay" class="text-yellow-300 font-bold">---</span>
         </div>
     </header>
 
-    <!-- Main Game Area -->
+    <!-- Main -->
     <main class="flex-1 relative w-full h-full overflow-hidden bg-sea-100 p-2">
         
-        <!-- 1. Lobby -->
+        <!-- Lobby -->
         <div id="lobbyScreen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-sea-300/90 backdrop-blur-sm">
             <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center border-4 border-sea-500">
                 <div class="text-6xl mb-2">⚓️</div>
@@ -201,39 +170,21 @@
             </div>
         </div>
 
-        <!-- 2. Setup Screen -->
+        <!-- Setup -->
         <div id="setupScreen" class="hidden h-full flex gap-4 max-w-6xl mx-auto items-center justify-center">
-            <!-- Ship Inventory -->
             <div class="w-1/3 h-full max-h-[500px] flex flex-col gap-2 bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200">
                 <h3 class="text-xl font-bold text-sea-700 text-center">My Fleet</h3>
-                <div class="text-xs text-center text-slate-500 mb-1">Select ship, then tap board.<br>Tap ship on board to rotate!</div>
-                
-                <div id="shipList" class="flex-1 space-y-2 overflow-y-auto pr-1 flex flex-col items-center">
-                    <!-- JS generated ships -->
-                </div>
-
+                <div class="text-xs text-center text-slate-500 mb-1">Tap board to place/rotate ships.</div>
+                <div id="shipList" class="flex-1 space-y-2 overflow-y-auto pr-1 flex flex-col items-center"></div>
                 <div class="flex gap-2">
-                    <button onclick="randomizeShips()" class="flex-1 py-3 bg-blue-500 text-white font-bold rounded-xl shadow border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">
-                        Random 🔀
-                    </button>
-                    <button onclick="resetSetup()" class="px-4 py-3 bg-red-400 text-white font-bold rounded-xl shadow border-b-4 border-red-600 active:border-b-0 active:translate-y-1">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                    <button onclick="randomizeShips()" class="flex-1 py-3 bg-blue-500 text-white font-bold rounded-xl shadow border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">Random 🔀</button>
+                    <button onclick="resetSetup()" class="px-4 py-3 bg-red-400 text-white font-bold rounded-xl shadow border-b-4 border-red-600 active:border-b-0 active:translate-y-1"><i class="fa-solid fa-trash"></i></button>
                 </div>
-                
-                <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">
-                    Place all ships!
-                </button>
+                <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-3 bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg border-b-4 border-gray-600 transition-all">Place all ships!</button>
             </div>
-            
-            <!-- Setup Grid -->
             <div class="h-full aspect-square max-h-[90vh] bg-white p-3 rounded-3xl shadow-lg border-4 border-sea-200 flex flex-col items-center justify-center">
-                 <div id="setupBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl">
-                    <!-- JS fills grid -->
-                 </div>
+                 <div id="setupBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
             </div>
-            
-            <!-- Waiting Modal -->
             <div id="waitingForOpponent" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
                 <div class="bg-white p-6 rounded-2xl text-center shadow-2xl animate-bounce">
                     <h3 class="text-2xl font-bold text-sea-700">Waiting for Opponent...</h3>
@@ -242,53 +193,50 @@
             </div>
         </div>
 
-        <!-- 3. Battle Screen -->
+        <!-- Battle -->
         <div id="battleScreen" class="hidden h-full flex gap-4 max-w-7xl mx-auto items-center justify-center p-2 relative">
-            
-            <!-- Turn Banner -->
-            <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">
-                Waiting...
-            </div>
-
-            <!-- Big Attack Map -->
+            <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl transition-all duration-300">Waiting...</div>
             <div class="h-full aspect-square max-h-[85vh] flex flex-col relative">
                 <div class="flex justify-between items-end mb-2 px-2">
                     <h3 class="text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
-                    <button onclick="endGame()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Quit</button>
+                    <button onclick="confirmExit()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Exit</button>
                 </div>
                 <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative overflow-visible">
                      <div id="enemyBoard" class="board-container w-full h-full bg-sea-100 p-1 rounded-xl"></div>
-                     <!-- Disabled Overlay for Turn logic -->
                      <div id="enemyBoardOverlay" class="disabled-overlay hidden">
                          <span class="text-white font-bold text-2xl drop-shadow-md">Opponent's Turn</span>
                      </div>
                 </div>
-                <!-- Missile Start Point Area -->
-                <div id="missileLauncher" class="absolute bottom-0 left-1/2 w-1 h-1"></div>
             </div>
-
-            <!-- Small Status Map -->
             <div class="w-1/3 h-full max-h-[85vh] flex flex-col">
                 <h3 class="text-xl font-bold text-sea-700 text-center mb-2">My Ships</h3>
                 <div class="bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 aspect-square mb-2">
                     <div id="playerBoard" class="board-container small-board w-full h-full bg-sea-100 p-1 rounded-lg"></div>
                 </div>
-                <!-- Status Box -->
                 <div class="flex-1 bg-white rounded-3xl shadow p-2 flex flex-col justify-center items-center gap-1 border-4 border-sea-100">
                      <div class="text-slate-400 text-xs font-bold uppercase">vs</div>
                      <div id="opponentNameDisplay" class="text-lg text-sea-700 font-bold">Opponent</div>
                 </div>
             </div>
         </div>
+        
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="hidden absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md overflow-hidden">
+            <div id="confettiContainer" class="absolute inset-0 pointer-events-none"></div>
+            <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md w-full animate-bounce-slight border-4 border-yellow-400 relative z-10">
+                <div id="winnerText" class="text-6xl mb-4">🏆</div>
+                <h2 id="gameOverTitle" class="text-5xl font-bold text-sea-700 mb-2">YOU WIN!</h2>
+                <p id="gameOverSubtitle" class="text-xl text-slate-500 mb-8 font-bold">All enemy ships destroyed!</p>
+                <button onclick="confirmExit()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-2xl text-xl shadow-lg border-b-4 border-green-700 active:border-b-0 active:translate-y-1">
+                    Exit & Delete Room
+                </button>
+            </div>
+        </div>
 
     </main>
     
-    <!-- Version Label -->
     <div id="versionLabel" class="fixed bottom-1 right-1 text-xs text-slate-400 pointer-events-none z-50"></div>
-
-    <footer id="gameLog" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg text-lg font-bold text-sea-700 pointer-events-none transition-all duration-300 z-50 border-2 border-sea-200 whitespace-nowrap">
-        Connecting...
-    </footer>
+    <footer id="gameLog" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-6 py-2 rounded-full shadow-lg text-lg font-bold text-sea-700 pointer-events-none transition-all duration-300 z-50 border-2 border-sea-200 whitespace-nowrap">Connecting...</footer>
 
     <!-- Firebase SDKs -->
     <script type="module">
@@ -296,35 +244,22 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
-        // --- VERSION CONTROL ---
-        const APP_VERSION = "v1.3 (Sound & VFX)";
+        // --- VERSION ---
+        const APP_VERSION = "v1.5 (Big Missile & Sync Boom)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
-        // --- AUDIO SYSTEM (Web Audio API) ---
+        // --- AUDIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
 
         const SoundFX = {
-            playTone: (freq, type, duration) => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            },
+            resume: () => { if (audioCtx.state === 'suspended') audioCtx.resume(); },
             playNoise: (duration, type = 'highpass') => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+                SoundFX.resume();
                 const bufferSize = audioCtx.sampleRate * duration;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
                 const noise = audioCtx.createBufferSource();
                 noise.buffer = buffer;
                 const filter = audioCtx.createBiquadFilter();
@@ -333,46 +268,38 @@
                 const gain = audioCtx.createGain();
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(audioCtx.destination);
+                noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
                 noise.start();
             },
             launch: () => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+                SoundFX.resume();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.6);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
             },
-            boom: () => SoundFX.playNoise(0.3, 'lowpass'), // Hit
-            splash: () => SoundFX.playNoise(0.3, 'highpass'), // Miss
-            sink: () => { // Big Boom
-                 if (audioCtx.state === 'suspended') audioCtx.resume();
-                 SoundFX.playNoise(1.5, 'lowpass');
-                 // Add deep tone
+            boom: () => SoundFX.playNoise(0.3, 'lowpass'),
+            splash: () => SoundFX.playNoise(0.3, 'highpass'),
+            sink: () => {
+                 SoundFX.resume();
+                 SoundFX.playNoise(2.0, 'lowpass');
                  const osc = audioCtx.createOscillator();
                  const gain = audioCtx.createGain();
                  osc.type = 'sawtooth';
-                 osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                 osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 1.0);
-                 gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
-                 osc.connect(gain);
-                 gain.connect(audioCtx.destination);
-                 osc.start();
-                 osc.stop(audioCtx.currentTime + 1.0);
+                 osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+                 osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 1.5);
+                 gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+                 osc.connect(gain); gain.connect(audioCtx.destination);
+                 osc.start(); osc.stop(audioCtx.currentTime + 1.5);
             }
         };
 
-        // --- 1. CONFIG ---
+        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyAFHSgSTrxn5D0tQOsbUckQ_xEvxbh2mq4",
             authDomain: "battleship-d5dbb.firebaseapp.com",
@@ -382,7 +309,7 @@
             appId: "1:40264054224:web:e8176d4669aeca6b7535d5"
         };
 
-        // --- 2. INIT ---
+        // --- INIT ---
         let app, auth, db, user;
         const appId = "kids-battle-ship-v1"; 
 
@@ -407,7 +334,7 @@
             });
         } catch (e) { console.error(e); }
 
-        // --- 3. CONSTANTS ---
+        // --- CONSTANTS ---
         const FLEET_TYPES = [
             { id: 'carrier', name: 'Carrier', size: 5, color: 'bg-yellow-500' },
             { id: 'battleship', name: 'Battleship', size: 4, color: 'bg-orange-500' },
@@ -416,7 +343,7 @@
             { id: 'destroyer', name: 'Destroyer', size: 2, color: 'bg-blue-400' }
         ];
 
-        // --- 4. GAME STATE ---
+        // --- STATE ---
         let currentRoomId = null;
         let isHost = false;
         let placedShips = []; 
@@ -424,18 +351,13 @@
         
         let enemyShipsCache = []; 
         let myShots = []; 
-        let enemyShots = []; 
-        
-        // Track previous shots count to detect NEW shots for FX
-        let prevMyShotsCount = 0;
-        let prevEnemyShotsCount = 0;
+        let enemyShots = [];
+        let sunkShipsLog = new Set(); 
 
-        // --- 5. SETUP LOGIC ---
-        
+        // --- SETUP LOGIC ---
         window.renderShipList = function() {
             const list = document.getElementById('shipList');
             list.innerHTML = '';
-            
             FLEET_TYPES.forEach(ship => {
                 const isPlaced = placedShips.find(s => s.id === ship.id);
                 const div = document.createElement('div');
@@ -450,46 +372,34 @@
         }
 
         window.selectShipType = function(ship) {
-            selectedShipType = ship;
-            renderShipList(); 
-            updateLog(`Selected ${ship.name}. Tap board to place.`);
+            selectedShipType = ship; renderShipList(); 
+            updateLog(`Selected ${ship.name}. Tap board.`);
         }
 
         window.handleSetupClick = function(index) {
             const clickedShipIndex = placedShips.findIndex(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-
             if (clickedShipIndex !== -1) {
                 const ship = placedShips[clickedShipIndex];
                 const newHorizontal = !ship.horizontal;
                 placedShips.splice(clickedShipIndex, 1);
-                
                 if (isValidPlacement(ship.index, ship.size, newHorizontal)) {
-                    ship.horizontal = newHorizontal;
-                    placedShips.push(ship);
+                    ship.horizontal = newHorizontal; placedShips.push(ship);
                     updateLog(`Rotated ${ship.name}!`);
                 } else {
-                    ship.horizontal = !newHorizontal; 
-                    placedShips.push(ship);
-                    updateLog(`Can't rotate here.`);
-                    shakeBoard();
+                    ship.horizontal = !newHorizontal; placedShips.push(ship);
+                    updateLog(`Can't rotate here.`); shakeBoard();
                 }
-                renderShipList();
-                createGrid('setupBoard', true); 
-                return;
+                renderShipList(); createGrid('setupBoard', true); return;
             }
-
             if (selectedShipType) {
                 if (isValidPlacement(index, selectedShipType.size, true)) {
                     placedShips.push({
                         id: selectedShipType.id, name: selectedShipType.name, size: selectedShipType.size, color: selectedShipType.color,
                         index: index, horizontal: true 
                     });
-                    selectedShipType = null;
-                    renderShipList();
-                    createGrid('setupBoard', true);
+                    selectedShipType = null; renderShipList(); createGrid('setupBoard', true);
                 } else {
-                    updateLog("Can't place here!");
-                    shakeBoard();
+                    updateLog("Can't place here!"); shakeBoard();
                 }
             }
         }
@@ -521,29 +431,21 @@
         window.randomizeShips = function() {
             placedShips = [];
             for (let ship of FLEET_TYPES) {
-                let placed = false;
-                let attempts = 0;
+                let placed = false; let attempts = 0;
                 while (!placed && attempts < 100) {
                     const idx = Math.floor(Math.random() * 100);
                     const horiz = Math.random() > 0.5;
                     if (isValidPlacement(idx, ship.size, horiz)) {
-                        placedShips.push({
-                            id: ship.id, name: ship.name, size: ship.size, color: ship.color,
-                            index: idx, horizontal: horiz
-                        });
+                        placedShips.push({ id: ship.id, name: ship.name, size: ship.size, color: ship.color, index: idx, horizontal: horiz });
                         placed = true;
                     }
                     attempts++;
                 }
             }
-            renderShipList();
-            createGrid('setupBoard', true);
-        }
-
-        window.resetSetup = function() {
-            placedShips = []; selectedShipType = null;
             renderShipList(); createGrid('setupBoard', true);
         }
+
+        window.resetSetup = function() { placedShips = []; selectedShipType = null; renderShipList(); createGrid('setupBoard', true); }
 
         function checkStartButton() {
             const btn = document.getElementById('startGameBtn');
@@ -560,26 +462,20 @@
             }
         }
 
-        // --- 6. ROOM & SYNC LOGIC ---
-
+        // --- ROOM LOGIC ---
         window.createRoom = async function() {
             if (!user) return alert("Wait for connection...");
             const name = document.getElementById('playerNameInput').value || "Captain";
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             currentRoomId = roomId; isHost = true;
-
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 await setDoc(roomRef, {
-                    host: { uid: user.uid, name: name, ready: false },
-                    status: 'waiting', 
-                    moves: [], 
-                    currentTurn: null,
-                    createdAt: Date.now()
+                    host: { uid: user.uid, name: name, ready: false, left: false },
+                    status: 'waiting', moves: [], currentTurn: null, createdAt: Date.now()
                 });
                 document.getElementById('roomIdDisplay').innerText = roomId;
-                switchScreen('setupScreen');
-                listenToRoom(roomId);
+                switchScreen('setupScreen'); listenToRoom(roomId);
             } catch (err) { console.error(err); alert("Create Error. Check Rules."); }
         };
 
@@ -588,27 +484,19 @@
             const name = document.getElementById('playerNameInput').value || "Sailor";
             const roomId = document.getElementById('joinRoomId').value;
             if (!roomId || roomId.length !== 4) return alert("Enter 4-digit ID");
-
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
                 const roomSnap = await getDoc(roomRef);
                 if (roomSnap.exists()) {
                     const data = roomSnap.data();
-                    if (data.host.uid === user.uid) {
-                        alert("⚠️ Use a different browser/device for 2nd player!");
-                        return; 
-                    }
+                    if (data.host.uid === user.uid) { alert("⚠️ Use different device!"); return; }
                     await updateDoc(roomRef, { 
-                        "guest.uid": user.uid, 
-                        "guest.name": name,
-                        "guest.ready": false,
-                        status: 'setup', 
-                        lastAction: 'Joined' 
+                        "guest.uid": user.uid, "guest.name": name, "guest.ready": false, "guest.left": false,
+                        status: 'setup', lastAction: 'Joined' 
                     });
                     currentRoomId = roomId; isHost = false;
                     document.getElementById('roomIdDisplay').innerText = roomId;
-                    switchScreen('setupScreen');
-                    listenToRoom(roomId);
+                    switchScreen('setupScreen'); listenToRoom(roomId);
                 } else { alert("Room not found!"); }
             } catch (err) { console.error(err); }
         };
@@ -616,37 +504,33 @@
         window.setReady = async function() {
             if (!currentRoomId) return;
             document.getElementById('startGameBtn').disabled = true;
-            document.getElementById('startGameBtn').innerText = "Waiting for Opponent...";
+            document.getElementById('startGameBtn').innerText = "Waiting...";
             document.getElementById('waitingForOpponent').classList.remove('hidden');
-
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const updatePayload = {};
             const role = isHost ? 'host' : 'guest';
-            updatePayload[`${role}.ships`] = placedShips;
-            updatePayload[`${role}.ready`] = true;
-            updatePayload['lastAction'] = `${role.toUpperCase()} is Ready`;
-
-            await updateDoc(roomRef, updatePayload);
+            await updateDoc(roomRef, { [`${role}.ships`]: placedShips, [`${role}.ready`]: true, lastAction: `${role.toUpperCase()} Ready` });
         }
 
         function listenToRoom(roomId) {
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
             onSnapshot(roomRef, (docSnap) => {
-                if (!docSnap.exists()) { alert("Room closed."); location.reload(); return; }
+                if (!docSnap.exists()) { alert("Room deleted."); location.reload(); return; }
                 const data = docSnap.data();
                 
-                if (data.host?.ready && data.guest?.ready && data.status !== 'playing') {
+                // Game Start Trigger
+                if (data.host?.ready && data.guest?.ready && data.status !== 'playing' && data.status !== 'finished') {
                     if (isHost) {
                         const startPlayer = Math.random() > 0.5 ? data.host.uid : data.guest.uid;
-                        updateDoc(roomRef, {
-                            status: 'playing',
-                            currentTurn: startPlayer,
-                            lastAction: "Game Started"
-                        });
+                        updateDoc(roomRef, { status: 'playing', currentTurn: startPlayer, lastAction: "Game Started" });
                     }
                 }
 
-                if (data.status === 'playing') {
+                // Game Over Trigger
+                if (data.status === 'finished') {
+                    showGameOver(data.winner);
+                }
+
+                if (data.status === 'playing' || data.status === 'finished') {
                     if (isHost) enemyShipsCache = data.guest.ships || [];
                     else enemyShipsCache = data.host.ships || [];
                     
@@ -655,7 +539,6 @@
 
                     const newMyShots = [];
                     const newEnemyShots = [];
-                    
                     if (data.moves) {
                         data.moves.forEach(m => {
                             if (m.uid === user.uid) newMyShots.push(m.index);
@@ -663,26 +546,26 @@
                         });
                     }
                     
-                    // --- DETECT NEW ENEMY SHOTS (I AM DEFENDER) ---
-                    if (newEnemyShots.length > prevEnemyShotsCount) {
-                        // A new shot arrived on my board
-                        const latestShotIndex = newEnemyShots[newEnemyShots.length - 1];
-                        checkImpactOnMe(latestShotIndex, newEnemyShots, placedShips);
-                    }
-
-                    // --- DETECT NEW MY SHOTS (I AM ATTACKER) ---
-                    // Note: We handle the launch locally, but we need to confirm result to player?
-                    // Usually visuals are enough.
-                    
                     myShots = newMyShots;
                     enemyShots = newEnemyShots;
-                    prevMyShotsCount = myShots.length;
-                    prevEnemyShotsCount = enemyShots.length;
-
-                    updateTurnUI(data.currentTurn);
                     
-                    if (!document.getElementById('setupScreen').classList.contains('hidden')) {
-                         switchScreen('battleScreen');
+                    // Check Sinking Sync (For both My Ships and Enemy Ships)
+                    checkAllSinks(myShots, enemyShipsCache, 'enemyBoard'); // Check if I sunk them
+                    checkAllSinks(enemyShots, placedShips, 'playerBoard'); // Check if they sunk me
+                    
+                    // Win Condition Check (Only Host needs to check and write)
+                    if (isHost && data.status === 'playing') {
+                        if (checkWin(newMyShots, enemyShipsCache)) {
+                            updateDoc(roomRef, { status: 'finished', winner: user.uid });
+                        } else if (checkWin(newEnemyShots, placedShips)) {
+                            updateDoc(roomRef, { status: 'finished', winner: data.guest.uid });
+                        }
+                    }
+
+                    updateTurnUI(data.currentTurn, data.status);
+                    
+                    if (document.getElementById('battleScreen').classList.contains('hidden')) {
+                        switchScreen('battleScreen');
                     } else {
                         createGrid('enemyBoard', true);
                         createGrid('playerBoard', false);
@@ -693,42 +576,44 @@
             });
         }
         
-        function checkImpactOnMe(shotIndex, allEnemyShots, myShips) {
-             const ship = myShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(shotIndex));
-             if (ship) {
-                 // Check if Sunk
-                 const shipIndices = getShipIndices(ship.index, ship.size, ship.horizontal);
-                 const isSunk = shipIndices.every(idx => allEnemyShots.includes(idx));
-                 
-                 if (isSunk) {
-                     // Trigger Mushroom Cloud on MY board at ship center
-                     SoundFX.sink();
-                     const centerIdx = shipIndices[Math.floor(shipIndices.length/2)];
-                     triggerMushroomCloud('playerBoard', centerIdx);
-                     updateLog("Ouch! Your ship sunk!");
-                 } else {
-                     SoundFX.boom();
-                 }
-             } else {
-                 SoundFX.splash();
-             }
+        function checkWin(shots, ships) {
+            if (!ships || ships.length === 0) return false;
+            return ships.every(ship => {
+                const indices = getShipIndices(ship.index, ship.size, ship.horizontal);
+                return indices.every(idx => shots.includes(idx));
+            });
         }
 
-        // Helper to check impact on enemy (Attacker View) - Calculated for Missile Landing
-        // We can't know for sure until data syncs, but Missile Logic happens immediately
-        // The Mushroom cloud for attacker view is optional or can be triggered if we want 
-        // full symmetry. User requested "Defender ship sunk -> Mushroom Cloud". 
-        // Let's add it for attacker too if they sink a ship.
-        // We can check if `myShots` sunk something in `enemyShipsCache`.
-        
-        // Let's update `listenToRoom` to check MY attack result too
-        // In `listenToRoom` -> inside `if (newMyShots.length > prevMyShotsCount)` block
-        // This is tricky because we update locally optimistically.
-        // Let's stick to Defender FX first as requested.
+        function checkAllSinks(shots, ships, boardId) {
+            ships.forEach(ship => {
+                const shipId = `${boardId}-${ship.index}`; 
+                if (!sunkShipsLog.has(shipId)) {
+                    const indices = getShipIndices(ship.index, ship.size, ship.horizontal);
+                    const isSunk = indices.every(idx => shots.includes(idx));
+                    if (isSunk) {
+                        sunkShipsLog.add(shipId);
+                        SoundFX.sink();
+                        // Trigger explosion at the center of the ship
+                        const centerIdx = indices[Math.floor(indices.length/2)];
+                        triggerMushroomCloud(boardId, centerIdx);
+                        if(boardId === 'playerBoard') updateLog("OUCH! Your ship sunk!");
+                        else updateLog("BOOM! Enemy ship sunk!");
+                    }
+                }
+            });
+        }
 
-        function updateTurnUI(turnUid) {
+        function updateTurnUI(turnUid, status) {
             const banner = document.getElementById('turnBanner');
             const overlay = document.getElementById('enemyBoardOverlay');
+            
+            if (status === 'finished') {
+                banner.innerText = "GAME OVER";
+                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-purple-600 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl";
+                overlay.classList.add('hidden'); // Allow seeing board
+                return;
+            }
+
             if (!turnUid) return;
             const isMyTurn = turnUid === user.uid;
             
@@ -743,17 +628,18 @@
             }
         }
 
-        // --- 7. BATTLE LOGIC (REAL SYNC) ---
-        
+        // --- BATTLE ACTIONS ---
         window.handleAttack = function(index) {
             if (!currentRoomId) return;
             if (myShots.includes(index)) return;
 
-            // 1. Launch Missile Effect (Visual + Sound)
+            // Trigger Animation First
             SoundFX.launch();
             triggerMissileAnimation(index);
 
-            // 2. Send Data
+            // Optimistic Logic: Prevent double click
+            // (Actual write happens after a slight delay to match animation)
+            
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             getDoc(roomRef).then(snap => {
                 const data = snap.data();
@@ -762,96 +648,116 @@
                 const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
                 const newMove = { uid: user.uid, index: index };
                 
-                // Wait for missile to land approx 0.5s before updating DB? 
-                // Or just update. Realtime is better.
                 setTimeout(() => {
                     updateDoc(roomRef, {
                         moves: arrayUnion(newMove),
                         currentTurn: nextTurn,
                         lastAction: `Shot fired!`
                     });
-                    // Check Hit sound locally for satisfaction
-                    // We check against cache
+                    
+                    // Local hit sound (Sink logic handled by Sync)
                     const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
-                    if(hitShip) {
-                        // We play hit sound after missile lands
-                        SoundFX.boom();
-                        // Check if Sunk locally to show FX to Attacker too?
-                        // Let's rely on Defender sync for big boom to keep it simple or check here
-                        // Checking here:
-                        const allMyShots = [...myShots, index];
-                        const shipIndices = getShipIndices(hitShip.index, hitShip.size, hitShip.horizontal);
-                        const isSunk = shipIndices.every(idx => allMyShots.includes(idx));
-                        if(isSunk) {
-                             setTimeout(() => {
-                                 SoundFX.sink();
-                                 triggerMushroomCloud('enemyBoard', index); // Show on enemy board
-                             }, 200);
-                        }
-                    } else {
-                        SoundFX.splash();
-                    }
-                }, 500); // Sync with missile flight
+                    if(hitShip) SoundFX.boom();
+                    else SoundFX.splash();
+                    
+                }, 600); // Matches animation duration
             });
         }
 
-        // --- VISUAL EFFECTS ---
+        // --- VISUALS ---
         function triggerMissileAnimation(targetIndex) {
-            // Get coordinates of target cell relative to screen
             const board = document.getElementById('enemyBoard');
-            const targetCell = board.children[targetIndex + 11]; // +11 due to grid labels
+            const targetCell = board.children[targetIndex + 11]; // +11 due to headers
             if(!targetCell) return;
-
-            const rect = targetCell.getBoundingClientRect();
             
-            // Create Missile
+            const rect = targetCell.getBoundingClientRect();
+            // Start from bottom center of screen
+            const startX = window.innerWidth / 2;
+            const startY = window.innerHeight;
+            
+            const targetX = rect.left + rect.width / 2;
+            const targetY = rect.top + rect.height / 2;
+
             const missile = document.createElement('div');
             missile.className = 'missile';
             missile.innerText = '🚀';
             document.body.appendChild(missile);
 
-            // Start Position (Bottom Center)
-            missile.style.left = '50%';
-            missile.style.bottom = '0px';
-            missile.style.top = 'auto';
+            // Web Animation API: Grow from scale 0.5 to 2.5
+            missile.animate([
+                { transform: `translate(${startX}px, ${startY}px) scale(0.5) rotate(-45deg)`, opacity: 0 },
+                { transform: `translate(${startX}px, ${startY}px) scale(0.5) rotate(-45deg)`, opacity: 1, offset: 0.1 },
+                { transform: `translate(${targetX}px, ${targetY}px) scale(2.5) rotate(-45deg)`, opacity: 1 }
+            ], {
+                duration: 600,
+                easing: 'ease-in',
+                fill: 'forwards'
+            });
 
-            // Calculate travel
-            // Simple animation class `fly-missile` goes up 60vh. 
-            // For precision we would use JS animation, but CSS is smoother/easier.
-            // Let's just use the CSS animation defined `fly-missile` which goes generic up.
-            // For better effect, let's set CSS variable for target?
-            // Let's stick to the generic "fly up to board" animation in CSS for simplicity.
-            missile.style.animation = 'fly-missile 0.5s linear forwards';
-
-            // Remove after animation
-            setTimeout(() => missile.remove(), 500);
+            setTimeout(() => missile.remove(), 600);
         }
 
         function triggerMushroomCloud(boardId, centerIndex) {
             const board = document.getElementById(boardId);
-            // Rough center logic
-            // Find cell
-            // Note: Grid includes labels, so index needs offset logic or `data-index`
             const cell = board.querySelector(`div[data-index='${centerIndex}']`);
             if(!cell) return;
             
             const cloud = document.createElement('div');
             cloud.className = 'mushroom-cloud';
             cloud.innerText = '🍄';
-            
-            // Position cloud on the cell
-            cell.appendChild(cloud); // Relative to cell
-            
-            // Remove
+            cell.appendChild(cloud); 
             setTimeout(() => cloud.remove(), 2000);
         }
 
-        // --- 8. VISUALS ---
+        function showGameOver(winnerUid) {
+            const modal = document.getElementById('gameOverModal');
+            const title = document.getElementById('gameOverTitle');
+            const sub = document.getElementById('gameOverSubtitle');
+            const icon = document.getElementById('winnerText');
+            const confetti = document.getElementById('confettiContainer');
+            
+            modal.classList.remove('hidden');
+            confetti.innerHTML = ''; 
+
+            if (winnerUid === user.uid) {
+                // WINNER
+                title.innerText = "VICTORY!";
+                title.className = "text-5xl font-bold text-yellow-500 mb-2 drop-shadow-lg";
+                sub.innerText = "You sank the entire fleet!";
+                icon.innerText = "🏆";
+                // Confetti
+                for(let i=0; i<30; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.innerText = ['🎉','🎊','✨','⭐'][Math.floor(Math.random()*4)];
+                    el.style.left = Math.random()*100 + '%';
+                    el.style.animationDuration = (2 + Math.random()*2) + 's';
+                    el.style.animationDelay = Math.random() + 's';
+                    confetti.appendChild(el);
+                }
+            } else {
+                // LOSER
+                title.innerText = "DEFEAT";
+                title.className = "text-5xl font-bold text-slate-600 mb-2";
+                sub.innerText = "Your fleet is at the bottom of the sea.";
+                icon.innerText = "🏳️";
+                // Rain
+                for(let i=0; i<40; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'rain';
+                    el.style.left = Math.random()*100 + '%';
+                    el.style.animationDuration = (0.5 + Math.random()*0.5) + 's';
+                    el.style.animationDelay = Math.random() + 's';
+                    confetti.appendChild(el);
+                }
+            }
+        }
+
+        // --- GRID RENDER ---
         const COLS = ['A','B','C','D','E','F','G','H','I','J'];
 
         function createGrid(elementId, interactive = false) {
             const board = document.getElementById(elementId);
-            // Save existing clouds if any? No, they are transient.
             board.innerHTML = ''; 
             board.appendChild(createLabel('')); 
             for (let c of COLS) board.appendChild(createLabel(c));
@@ -862,16 +768,13 @@
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     const index = r * 10 + c;
-                    cell.dataset.index = index; // For looking up position
+                    cell.dataset.index = index;
 
-                    // --- SETUP ---
                     if (elementId === 'setupBoard') {
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                         if (ship) { cell.classList.add('occupied', ship.color); }
                         if (interactive) cell.onclick = () => handleSetupClick(index);
                     }
-
-                    // --- PLAYER BOARD (My View) ---
                     if (elementId === 'playerBoard') {
                         const ship = placedShips.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
                         if (ship) { cell.classList.add('occupied', ship.color); }
@@ -881,8 +784,6 @@
                             else cell.classList.add('miss');
                         }
                     }
-                    
-                    // --- ENEMY BOARD (Attack View) ---
                     if (elementId === 'enemyBoard') {
                         if (myShots.includes(index)) {
                             const hitShip = enemyShipsCache.find(s => getShipIndices(s.index, s.size, s.horizontal).includes(index));
@@ -907,19 +808,28 @@
         window.switchScreen = function(screenId) {
             document.querySelectorAll('main > div').forEach(d => d.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
-            
-            if (screenId === 'setupScreen') {
-                renderShipList();
-                createGrid('setupBoard', true);
-            } else if (screenId === 'battleScreen') {
-                createGrid('enemyBoard', true);
-                createGrid('playerBoard', false);
-            }
+            if (screenId === 'setupScreen') { renderShipList(); createGrid('setupBoard', true); }
+            else if (screenId === 'battleScreen') { createGrid('enemyBoard', true); createGrid('playerBoard', false); }
         }
         
-        window.endGame = async function() {
-            if (confirm("Quit game?")) {
-                if(currentRoomId) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId));
+        // --- SAFE EXIT ---
+        window.confirmExit = async function() {
+            if (confirm("Are you sure you want to exit?")) {
+                if(currentRoomId && user) {
+                    const role = isHost ? 'host' : 'guest';
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                    
+                    // 1. Mark myself as left
+                    await updateDoc(roomRef, { [`${role}.left`]: true });
+                    
+                    // 2. Check if BOTH left, then delete
+                    const snap = await getDoc(roomRef);
+                    const d = snap.data();
+                    if (d.host?.left && d.guest?.left) {
+                        await deleteDoc(roomRef);
+                        console.log("Room deleted as both players left.");
+                    }
+                }
                 location.reload();
             }
         }
