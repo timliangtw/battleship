@@ -43,17 +43,7 @@
             user-select: none;
         }
 
-        #orientation-lock {
-            display: none;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: #00BCD4; z-index: 9999;
-            flex-direction: column; align-items: center; justify-content: center;
-            color: white; text-align: center;
-        }
-        @media screen and (orientation: portrait) {
-            #orientation-lock { display: flex; }
-            main { display: none; }
-        }
+        /* REMOVED ORIENTATION LOCK - Allowing Portrait Mode */
 
         .board-container {
             display: grid;
@@ -154,22 +144,16 @@
         .emoji-btn { transition: all 0.1s; }
         .emoji-btn:active { transform: scale(0.8); background-color: #93C5FD; }
         
-        /* New Responsive Square Helper */
+        /* Responsive Square Helper */
         .responsive-square {
             height: 100%;
             width: auto;
             aspect-ratio: 1 / 1;
             max-width: 100%;
-            /* If height > width available, width hits max-width, and aspect ratio shrinks height */
         }
     </style>
 </head>
 <body class="h-[100dvh] flex flex-col text-slate-700 overflow-hidden">
-
-    <div id="orientation-lock">
-        <i class="fa-solid fa-mobile-screen-button fa-rotate-270 text-6xl mb-4 animate-bounce"></i>
-        <h1 class="text-3xl font-bold">Please Rotate!</h1>
-    </div>
 
     <!-- FX Layer -->
     <div id="fx-layer" class="fixed inset-0 pointer-events-none z-[200] overflow-hidden"></div>
@@ -177,14 +161,14 @@
     <header class="bg-sea-500 text-white p-2 px-4 flex justify-between items-center shadow-md z-50 h-16 shrink-0 relative">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-ship text-2xl text-yellow-300"></i>
-            <h1 class="text-2xl font-bold tracking-wide text-white drop-shadow-md">Sea Battle</h1>
+            <h1 class="text-xl md:text-2xl font-bold tracking-wide text-white drop-shadow-md">Sea Battle</h1>
         </div>
         <div class="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
             <div id="connDot" class="w-3 h-3 rounded-full bg-red-500 transition-colors duration-500"></div>
             <span id="connText" class="text-sm font-bold">Offline</span>
         </div>
         <div class="text-sm font-mono bg-sea-700 px-3 py-1 rounded-lg">
-            Room: <span id="roomIdDisplay" class="text-yellow-300 font-bold">---</span>
+            <span class="hidden md:inline">Room: </span><span id="roomIdDisplay" class="text-yellow-300 font-bold">---</span>
         </div>
     </header>
 
@@ -210,21 +194,23 @@
             </div>
         </div>
 
-        <!-- Setup Screen -->
-        <div id="setupScreen" class="hidden h-full w-full flex gap-2 justify-center items-stretch">
-            <!-- Sidebar -->
-            <div class="w-48 md:w-1/3 flex flex-col gap-2 bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0 overflow-y-auto">
+        <!-- Setup Screen: Mobile = Column, Desktop = Row -->
+        <div id="setupScreen" class="hidden h-full w-full flex flex-col md:flex-row gap-2 justify-center items-stretch">
+            
+            <!-- Sidebar: Top on Mobile, Left on Desktop -->
+            <div class="w-full h-auto md:w-1/3 md:h-full flex flex-col gap-2 bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 shrink-0 overflow-y-auto max-h-[35vh] md:max-h-full">
                 <h3 class="text-lg font-bold text-sea-700 text-center">My Fleet</h3>
                 <div class="text-xs text-center text-slate-500 mb-1">Tap board to place/rotate.</div>
-                <div id="shipList" class="flex-1 space-y-2 overflow-y-auto pr-1 flex flex-col items-center"></div>
+                <!-- Ship list horizontal on mobile for space? No, flex-wrap maybe -->
+                <div id="shipList" class="flex-1 space-y-1 md:space-y-2 overflow-y-auto pr-1 flex flex-col items-center"></div>
                 <div class="flex gap-2 mt-auto shrink-0">
                     <button onclick="randomizeShips()" class="flex-1 py-2 bg-blue-500 text-white font-bold rounded-xl shadow active:scale-95 text-sm">Random</button>
                     <button onclick="resetSetup()" class="px-3 py-2 bg-red-400 text-white font-bold rounded-xl shadow active:scale-95"><i class="fa-solid fa-trash"></i></button>
                 </div>
-                <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-3 bg-gray-400 text-white text-lg font-bold rounded-xl shadow-lg transition-all mt-1 shrink-0">Place Ships</button>
+                <button id="startGameBtn" onclick="setReady()" disabled class="w-full py-2 md:py-3 bg-gray-400 text-white text-lg font-bold rounded-xl shadow-lg transition-all mt-1 shrink-0">Place Ships</button>
             </div>
             
-            <!-- Setup Board: Uses responsive-square logic -->
+            <!-- Setup Board: Fills remaining -->
             <div class="flex-1 flex items-center justify-center bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 overflow-hidden relative">
                  <div class="responsive-square relative">
                      <div id="setupBoard" class="board-container"></div>
@@ -239,21 +225,20 @@
             </div>
         </div>
 
-        <!-- Battle Screen -->
-        <div id="battleScreen" class="hidden h-full w-full flex gap-2 justify-center items-stretch">
+        <!-- Battle Screen: Mobile = Column, Desktop = Row -->
+        <div id="battleScreen" class="hidden h-full w-full flex flex-col md:flex-row gap-2 justify-center items-stretch">
             
-            <!-- Left Column: Enemy Board (Main Game Area) -->
-            <div class="flex-1 flex flex-col relative min-w-0">
+            <!-- Attack Map (Enemy Board): Priority 1 (Largest) -->
+            <div class="flex-1 flex flex-col relative min-h-0">
                 <div id="turnBanner" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-40 bg-gray-500 text-white px-4 py-1 rounded-full shadow-lg font-bold text-sm md:text-xl transition-all duration-300 pointer-events-none whitespace-nowrap">Waiting...</div>
                 
                 <div class="flex justify-between items-end mb-1 px-2 shrink-0">
-                    <h3 class="text-xl md:text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
+                    <h3 class="text-lg md:text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
                     <button onclick="confirmExit()" class="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-red-600">Exit</button>
                 </div>
                 
                 <!-- Board Wrapper -->
                 <div class="flex-1 bg-white p-2 rounded-3xl shadow-xl border-4 border-red-200 relative overflow-hidden flex items-center justify-center">
-                     <!-- Responsive Square -->
                      <div class="responsive-square relative">
                          <div id="enemyBoard" class="board-container"></div>
                          <div id="enemyBoardOverlay" class="disabled-overlay hidden">
@@ -263,37 +248,38 @@
                 </div>
             </div>
 
-            <!-- Right Column: My Ships & Chat -->
-            <div class="w-48 md:w-1/3 flex flex-col gap-2 shrink-0 h-full overflow-hidden">
+            <!-- Right/Bottom Column: My Ships & Chat -->
+            <div class="w-full md:w-1/3 flex flex-row md:flex-col gap-2 shrink-0 h-auto md:h-full overflow-hidden min-h-[120px] md:min-h-0">
                 
                 <!-- My Board (Small) -->
-                <div class="shrink-0 flex flex-col">
-                    <h3 class="text-sm md:text-xl font-bold text-sea-700 text-center mb-1">My Ships</h3>
-                    <div class="bg-white p-2 rounded-3xl shadow-lg border-4 border-sea-200 w-full flex justify-center">
-                        <div class="aspect-square w-full max-w-[200px]">
+                <div class="w-1/3 md:w-full shrink-0 flex flex-col">
+                    <h3 class="text-xs md:text-xl font-bold text-sea-700 text-center mb-1">My Ships</h3>
+                    <div class="bg-white p-1 md:p-2 rounded-xl md:rounded-3xl shadow-lg border-2 md:border-4 border-sea-200 w-full flex justify-center h-full items-center">
+                        <div class="aspect-square w-full h-auto max-h-full max-w-[200px]">
                             <div id="playerBoard" class="board-container"></div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Chat Module -->
-                <div class="flex-1 min-h-0 bg-white rounded-3xl shadow p-2 flex flex-col gap-2 border-4 border-sea-100 relative overflow-hidden">
-                    <div id="opponentNameDisplay" class="text-xs text-sea-700 font-bold text-center shrink-0">Waiting...</div>
+                <div class="flex-1 bg-white rounded-xl md:rounded-3xl shadow p-1 md:p-2 flex flex-col gap-1 md:gap-2 border-2 md:border-4 border-sea-100 relative overflow-hidden">
+                    <div id="opponentNameDisplay" class="text-[10px] md:text-xs text-sea-700 font-bold text-center shrink-0">Waiting...</div>
 
-                    <div id="chatHistory" class="flex-1 flex flex-col gap-2 bg-sea-100 rounded-xl p-2 w-full overflow-y-auto scroll-smooth">
-                        <div class="text-center text-slate-400 text-xs italic">Chat here!</div>
+                    <!-- Scrollable Chat History -->
+                    <div id="chatHistory" class="flex-1 flex flex-col gap-1 md:gap-2 bg-sea-100 rounded-lg md:rounded-xl p-1 md:p-2 w-full overflow-y-auto scroll-smooth">
+                        <div class="text-center text-slate-400 text-xs italic">Chat!</div>
                     </div>
                     
                     <!-- Emoji Grid -->
                     <div class="grid grid-cols-4 gap-1 w-full shrink-0">
-                        <button onclick="sendEmoji(this, '👋')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">👋</button>
-                        <button onclick="sendEmoji(this, '😂')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">😂</button>
-                        <button onclick="sendEmoji(this, '😎')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">😎</button>
-                        <button onclick="sendEmoji(this, '😱')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">😱</button>
-                        <button onclick="sendEmoji(this, '😡')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">😡</button>
-                        <button onclick="sendEmoji(this, '🤔')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">🤔</button>
-                        <button onclick="sendEmoji(this, '💣')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">💣</button>
-                        <button onclick="sendEmoji(this, '🏳️')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-xl md:text-2xl">🏳️</button>
+                        <button onclick="sendEmoji(this, '👋')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">👋</button>
+                        <button onclick="sendEmoji(this, '😂')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">😂</button>
+                        <button onclick="sendEmoji(this, '😎')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">😎</button>
+                        <button onclick="sendEmoji(this, '😱')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">😱</button>
+                        <button onclick="sendEmoji(this, '😡')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">😡</button>
+                        <button onclick="sendEmoji(this, '🤔')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">🤔</button>
+                        <button onclick="sendEmoji(this, '💣')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">💣</button>
+                        <button onclick="sendEmoji(this, '🏳️')" class="emoji-btn bg-gray-100 hover:bg-gray-200 rounded p-1 text-lg md:text-2xl">🏳️</button>
                     </div>
                 </div>
             </div>
@@ -323,7 +309,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.16 (Board Scale Fix)";
+        const APP_VERSION = "v1.17 (Responsive Portrait)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // --- AUDIO ---
@@ -715,8 +701,8 @@
                             const bubble = document.createElement('div');
                             // Styling: Me = Right/Blue, Opponent = Left/White
                             bubble.className = isMe 
-                                ? 'self-end bg-blue-200 text-2xl p-2 rounded-lg rounded-br-none shadow-sm animate-pop-in' 
-                                : 'self-start bg-white text-2xl p-2 rounded-lg rounded-bl-none shadow-sm border border-gray-200 animate-pop-in';
+                                ? 'self-end bg-blue-200 text-lg md:text-2xl p-1 md:p-2 rounded-lg rounded-br-none shadow-sm animate-pop-in' 
+                                : 'self-start bg-white text-lg md:text-2xl p-1 md:p-2 rounded-lg rounded-bl-none shadow-sm border border-gray-200 animate-pop-in';
                             bubble.innerText = msg.emoji;
                             chatEl.appendChild(bubble);
                         });
