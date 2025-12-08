@@ -313,7 +313,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.30 (Mobile Layout Fix)";
+        const APP_VERSION = "v1.31 (Sunk Fix)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -899,13 +899,17 @@
 
         function checkAllSinks(shots, ships, boardId) {
             ships.forEach(ship => {
-                const shipId = `${ship.id}-sunk`; 
+                // FIX: Unique ID per fleet owner (enemy vs player)
+                // If boardId starts with 'enemy', it's the opponent's fleet being checked.
+                const isEnemyCheck = boardId.startsWith('enemy');
+                const ownerPrefix = isEnemyCheck ? 'enemy' : 'player';
+                const shipId = `${ownerPrefix}-${ship.id}-sunk`; 
+
                 const indices = getShipIndices(ship.index, ship.size, ship.horizontal);
                 const isSunk = indices.every(idx => shots.includes(idx));
                 
                 // NEW: Update HUD if this is the enemy board check
-                // We identify enemy check because boardId starts with 'enemy'
-                if (boardId.startsWith('enemy')) {
+                if (isEnemyCheck) {
                     markHudShipAsSunk(ship.id, isSunk);
                 }
 
@@ -913,13 +917,15 @@
                     sunkShipsLog.add(shipId);
                     SoundFX.sink();
                     const centerIdx = indices[Math.floor(indices.length/2)];
-                    if (document.getElementById('enemyBoard').offsetParent) triggerAtomicExplosion('enemyBoard', centerIdx);
-                    if (document.getElementById('enemyBoardDesktop').offsetParent) triggerAtomicExplosion('enemyBoardDesktop', centerIdx);
-                    if (boardId === 'playerBoard') {
-                             triggerAtomicExplosion('playerBoard', centerIdx);
-                             updateLog("OUCH! Your ship sunk!");
+                    
+                    // Trigger visual explosion on the correct board
+                    if (isEnemyCheck) {
+                        if (document.getElementById('enemyBoard').offsetParent) triggerAtomicExplosion('enemyBoard', centerIdx);
+                        if (document.getElementById('enemyBoardDesktop').offsetParent) triggerAtomicExplosion('enemyBoardDesktop', centerIdx);
+                        updateLog("BOOM! Enemy ship sunk!");
                     } else {
-                             updateLog("BOOM! Enemy ship sunk!");
+                        triggerAtomicExplosion('playerBoard', centerIdx);
+                        updateLog("OUCH! Your ship sunk!");
                     }
                 }
             });
