@@ -215,7 +215,8 @@
             
             <!-- Attack Map Area -->
             <div class="flex-1 flex flex-col relative min-h-0 shrink-1">
-                <div id="turnBanner" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-40 bg-gray-500 text-white px-4 py-1 rounded-full shadow-lg font-bold text-sm md:text-xl transition-all duration-300 pointer-events-none whitespace-nowrap">Waiting...</div>
+                <!-- UPDATED: Banner now defaults to hidden/styled by JS, removed static top-2/left-1/2 to avoid flash -->
+                <div id="turnBanner" class="absolute top-0 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 pointer-events-none whitespace-nowrap opacity-0">Waiting...</div>
                 
                 <div class="flex justify-between items-end mb-1 px-1 shrink-0">
                     <h3 class="text-lg md:text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
@@ -223,7 +224,8 @@
                 </div>
 
                 <!-- HUD: Enemy Fleet Status (NEW) -->
-                <div id="enemyFleetHUD" class="flex justify-center gap-3 md:gap-6 mb-1 px-2 h-4 md:h-6 shrink-0">
+                <!-- Added mt-2 to give breathing room from the banner -->
+                <div id="enemyFleetHUD" class="flex justify-center gap-3 md:gap-6 mb-1 mt-2 px-2 h-4 md:h-6 shrink-0 transition-all">
                     <!-- Javascript will populate this -->
                 </div>
                 
@@ -310,7 +312,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.28 (HUD)";
+        const APP_VERSION = "v1.29 (HUD Fix)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -929,6 +931,7 @@
             if (status === 'finished') {
                 banner.innerText = "GAME OVER";
                 banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-purple-600 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl";
+                banner.style.opacity = 1;
                 overlays.forEach(o => o?.classList.add('hidden')); 
                 return;
             }
@@ -936,13 +939,17 @@
             if (!turnUid) return;
             const isMyTurn = turnUid === user.uid;
             
+            // ADJUSTED: Changed translation values to pull banner UP (-translate-y-4)
+            // ADJUSTED: Reduced padding (py-1) and font size (text-sm) for mobile compactness
             if (isMyTurn) {
                 banner.innerText = "YOUR TURN!";
-                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-green-500 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl animate-bounce";
+                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 z-40 bg-green-500 text-white px-6 py-1 md:py-2 rounded-b-xl shadow-lg font-bold text-sm md:text-xl animate-bounce";
+                banner.style.opacity = 1;
                 overlays.forEach(o => o?.classList.add('hidden'));
             } else {
                 banner.innerText = "Opponent's Turn";
-                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-gray-500 text-white px-6 py-2 rounded-b-xl shadow-lg font-bold text-lg";
+                banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 z-40 bg-gray-500 text-white px-4 py-1 md:py-2 rounded-b-xl shadow-lg font-bold text-sm md:text-lg";
+                banner.style.opacity = 1;
                 overlays.forEach(o => o?.classList.remove('hidden'));
             }
         }
