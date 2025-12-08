@@ -113,6 +113,16 @@
         .emoji-btn:active { transform: scale(0.8); background-color: #93C5FD; }
         .pulse-dot { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; }
         @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+
+        /* --- HUD STYLES --- */
+        .hud-ship { display: flex; gap: 2px; align-items: center; opacity: 0.4; transition: all 0.5s; padding: 2px; border-radius: 4px; }
+        .hud-ship.sunk { opacity: 1; }
+        .hud-ship.sunk .hud-block { background-color: #EF5350; box-shadow: 0 0 5px #EF5350; }
+        .hud-block { width: 8px; height: 8px; background-color: #64748B; border-radius: 2px; }
+        @media (min-width: 768px) {
+            .hud-block { width: 12px; height: 12px; }
+            .hud-ship { gap: 3px; }
+        }
     </style>
 </head>
 <body class="h-[100dvh] flex flex-col text-slate-700 overflow-hidden">
@@ -211,6 +221,11 @@
                     <h3 class="text-lg md:text-2xl font-bold text-red-500 drop-shadow-sm">Attack Map</h3>
                     <button onclick="confirmExit()" class="bg-red-500 text-white text-[10px] md:text-xs px-2 py-1 rounded-full font-bold hover:bg-red-600">Exit</button>
                 </div>
+
+                <!-- HUD: Enemy Fleet Status (NEW) -->
+                <div id="enemyFleetHUD" class="flex justify-center gap-3 md:gap-6 mb-1 px-2 h-4 md:h-6 shrink-0">
+                    <!-- Javascript will populate this -->
+                </div>
                 
                 <!-- Board Wrapper -->
                 <div class="flex-1 bg-white p-1 md:p-2 rounded-2xl md:rounded-3xl shadow-xl border-4 border-red-200 relative overflow-hidden flex items-center justify-center">
@@ -295,7 +310,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.27 (FixSetupClick)";
+        const APP_VERSION = "v1.28 (HUD)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -632,6 +647,33 @@
             }
         }
 
+        // --- NEW HUD LOGIC ---
+        window.initEnemyFleetHUD = function() {
+            const container = document.getElementById('enemyFleetHUD');
+            container.innerHTML = '';
+            FLEET_TYPES.forEach(ship => {
+                const shipEl = document.createElement('div');
+                shipEl.className = 'hud-ship';
+                shipEl.dataset.shipId = ship.id; // Map by ship ID (carrier, battleship...)
+                
+                // Create blocks
+                for(let i=0; i<ship.size; i++) {
+                    const block = document.createElement('div');
+                    block.className = 'hud-block';
+                    shipEl.appendChild(block);
+                }
+                container.appendChild(shipEl);
+            });
+        }
+        
+        window.markHudShipAsSunk = function(shipId, isSunk) {
+            const el = document.querySelector(`.hud-ship[data-ship-id="${shipId}"]`);
+            if (el) {
+                if (isSunk) el.classList.add('sunk');
+                else el.classList.remove('sunk');
+            }
+        }
+
         window.createRoom = async function() {
             if (!user) return alert("Wait for connection...");
             initAudio(); // FIX 3: Unlock Audio
@@ -855,21 +897,26 @@
         function checkAllSinks(shots, ships, boardId) {
             ships.forEach(ship => {
                 const shipId = `${ship.id}-sunk`; 
-                if (!sunkShipsLog.has(shipId)) {
-                    const indices = getShipIndices(ship.index, ship.size, ship.horizontal);
-                    const isSunk = indices.every(idx => shots.includes(idx));
-                    if (isSunk) {
-                        sunkShipsLog.add(shipId);
-                        SoundFX.sink();
-                        const centerIdx = indices[Math.floor(indices.length/2)];
-                        if (document.getElementById('enemyBoard').offsetParent) triggerAtomicExplosion('enemyBoard', centerIdx);
-                        if (document.getElementById('enemyBoardDesktop').offsetParent) triggerAtomicExplosion('enemyBoardDesktop', centerIdx);
-                        if (boardId === 'playerBoard') {
+                const indices = getShipIndices(ship.index, ship.size, ship.horizontal);
+                const isSunk = indices.every(idx => shots.includes(idx));
+                
+                // NEW: Update HUD if this is the enemy board check
+                // We identify enemy check because boardId starts with 'enemy'
+                if (boardId.startsWith('enemy')) {
+                    markHudShipAsSunk(ship.id, isSunk);
+                }
+
+                if (!sunkShipsLog.has(shipId) && isSunk) {
+                    sunkShipsLog.add(shipId);
+                    SoundFX.sink();
+                    const centerIdx = indices[Math.floor(indices.length/2)];
+                    if (document.getElementById('enemyBoard').offsetParent) triggerAtomicExplosion('enemyBoard', centerIdx);
+                    if (document.getElementById('enemyBoardDesktop').offsetParent) triggerAtomicExplosion('enemyBoardDesktop', centerIdx);
+                    if (boardId === 'playerBoard') {
                              triggerAtomicExplosion('playerBoard', centerIdx);
                              updateLog("OUCH! Your ship sunk!");
-                        } else {
+                    } else {
                              updateLog("BOOM! Enemy ship sunk!");
-                        }
                     }
                 }
             });
@@ -1086,7 +1133,10 @@
             document.querySelectorAll('main > div').forEach(d => d.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
             if (screenId === 'setupScreen') { renderShipList(); updateGrids(); }
-            else if (screenId === 'battleScreen') { updateGrids(); }
+            else if (screenId === 'battleScreen') { 
+                updateGrids(); 
+                initEnemyFleetHUD(); // Initial render of HUD
+            }
         }
         
         window.confirmExit = async function() {
