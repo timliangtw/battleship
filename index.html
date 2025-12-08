@@ -169,7 +169,8 @@
                         Create Room
                     </button>
                     <div class="flex gap-2">
-                        <input id="joinRoomId" type="text" placeholder="1234" class="w-24 bg-slate-100 text-center font-bold border-2 border-sea-300 rounded-xl">
+                        <!-- FIX: Enforce numeric input -->
+                        <input id="joinRoomId" type="tel" maxlength="4" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="1234" class="w-24 bg-slate-100 text-center font-bold border-2 border-sea-300 rounded-xl">
                         <button onclick="joinRoom()" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-white text-xl font-bold py-3 px-6 rounded-2xl shadow-lg border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1">
                             Join Room
                         </button>
@@ -321,7 +322,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.32 (Turn Alert)";
+        const APP_VERSION = "v1.33 (Smart Delay)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -501,6 +502,7 @@
         let isProcessingTurn = false;
         let previousChatLength = 0; // NEW: Track chat length for sound notification
         let lastTurnUid = null; // NEW: Track turn transition for alerts
+        let latestSinkTime = 0; // NEW: Track when the last ship was sunk for alert delays
 
         async function cleanupOldRooms() {
             try {
@@ -946,6 +948,7 @@
 
                 if (!sunkShipsLog.has(shipId) && isSunk) {
                     sunkShipsLog.add(shipId);
+                    latestSinkTime = Date.now(); // Record time of new sink
                     SoundFX.sink();
                     const centerIdx = indices[Math.floor(indices.length/2)];
                     
@@ -999,28 +1002,37 @@
             }
         }
         
-        // NEW: Trigger the flash, sound, and vibration
+        // NEW: Trigger the flash, sound, and vibration with smart delay
         function triggerTurnNotification() {
-             SoundFX.bell(); // Ding-Ding!
+             const now = Date.now();
+             const timeSinceSink = now - latestSinkTime;
              
-             // Haptic feedback (if supported)
-             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-             
-             // Visual Flash Overlay
-             const overlay = document.getElementById('turnFlashOverlay');
-             const box = document.getElementById('turnMsgBox');
-             
-             // Show
-             overlay.classList.remove('opacity-0'); 
-             box.classList.remove('scale-50'); 
-             box.classList.add('scale-100');
-             
-             // Hide after 1.5s
+             // If a ship sank less than 3 seconds ago, wait until animation roughly clears
+             // Otherwise, small delay to let user process the board state
+             const delay = (timeSinceSink < 3000) ? 3000 - timeSinceSink : 500;
+
              setTimeout(() => {
-                 overlay.classList.add('opacity-0');
-                 box.classList.remove('scale-100');
-                 box.classList.add('scale-50');
-             }, 1500);
+                 SoundFX.bell(); // Ding-Ding!
+                 
+                 // Haptic feedback (if supported)
+                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                 
+                 // Visual Flash Overlay
+                 const overlay = document.getElementById('turnFlashOverlay');
+                 const box = document.getElementById('turnMsgBox');
+                 
+                 // Show
+                 overlay.classList.remove('opacity-0'); 
+                 box.classList.remove('scale-50'); 
+                 box.classList.add('scale-100');
+                 
+                 // Hide after 1.5s
+                 setTimeout(() => {
+                     overlay.classList.add('opacity-0');
+                     box.classList.remove('scale-100');
+                     box.classList.add('scale-50');
+                 }, 1500);
+             }, delay);
         }
 
         window.handleAttack = function(index) {
