@@ -129,6 +129,14 @@
 
     <div id="fx-layer" class="fixed inset-0 pointer-events-none z-[200] overflow-hidden"></div>
 
+    <!-- NEW: Turn Flash Overlay (Initially Hidden) -->
+    <div id="turnFlashOverlay" class="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+        <div id="turnMsgBox" class="bg-green-500 text-white p-6 md:p-10 rounded-3xl shadow-2xl transform scale-50 transition-transform duration-300 border-4 border-white flex flex-col items-center">
+            <div class="text-6xl md:text-8xl mb-2 animate-bounce">🫵</div>
+            <h2 class="text-4xl md:text-6xl font-bold drop-shadow-md whitespace-nowrap">YOUR TURN!</h2>
+        </div>
+    </div>
+
     <header class="bg-sea-500 text-white p-2 px-4 flex justify-between items-center shadow-md z-50 h-14 shrink-0 relative">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-ship text-xl md:text-2xl text-yellow-300"></i>
@@ -313,7 +321,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.31 (Sunk Fix)";
+        const APP_VERSION = "v1.32 (Turn Alert)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -414,6 +422,28 @@
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
                 osc.connect(gain); gain.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            },
+            // NEW: Ship Bell sound for turn alert
+            bell: () => {
+                SoundFX.ensureContext();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                // Create two distinct strikes "Ding-Ding"
+                [0, 0.4].forEach((delay) => {
+                    // Fundamental + Overtones for a bell-like tone
+                    [880, 1760, 2640].forEach((freq, i) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = i === 0 ? 'sine' : 'triangle'; // Mix sine/triangle
+                        osc.frequency.value = freq;
+                        
+                        gain.gain.setValueAtTime(0.1 / (i+1), now + delay);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 1.2);
+                        
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now + delay); osc.stop(now + delay + 1.2);
+                    });
+                });
             }
         };
 
@@ -470,6 +500,7 @@
         let lastChatTime = 0;
         let isProcessingTurn = false;
         let previousChatLength = 0; // NEW: Track chat length for sound notification
+        let lastTurnUid = null; // NEW: Track turn transition for alerts
 
         async function cleanupOldRooms() {
             try {
@@ -935,6 +966,13 @@
             const banner = document.getElementById('turnBanner');
             const overlays = [document.getElementById('enemyBoardOverlay'), document.getElementById('enemyBoardOverlayDesktop')];
             
+            // NEW: Detect turn transition for alert (User became the active player)
+            if (turnUid && turnUid === user.uid && lastTurnUid !== turnUid && status === 'playing') {
+                 triggerTurnNotification();
+            }
+            // Update last state
+            if (status === 'playing') lastTurnUid = turnUid;
+
             if (status === 'finished') {
                 banner.innerText = "GAME OVER";
                 banner.className = "absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-40 bg-purple-600 text-white px-8 py-2 rounded-b-xl shadow-lg font-bold text-xl";
@@ -959,6 +997,30 @@
                 banner.style.opacity = 1;
                 overlays.forEach(o => o?.classList.remove('hidden'));
             }
+        }
+        
+        // NEW: Trigger the flash, sound, and vibration
+        function triggerTurnNotification() {
+             SoundFX.bell(); // Ding-Ding!
+             
+             // Haptic feedback (if supported)
+             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+             
+             // Visual Flash Overlay
+             const overlay = document.getElementById('turnFlashOverlay');
+             const box = document.getElementById('turnMsgBox');
+             
+             // Show
+             overlay.classList.remove('opacity-0'); 
+             box.classList.remove('scale-50'); 
+             box.classList.add('scale-100');
+             
+             // Hide after 1.5s
+             setTimeout(() => {
+                 overlay.classList.add('opacity-0');
+                 box.classList.remove('scale-100');
+                 box.classList.add('scale-50');
+             }, 1500);
         }
 
         window.handleAttack = function(index) {
