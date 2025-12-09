@@ -322,7 +322,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.33 (Smart Delay)";
+        const APP_VERSION = "v1.35 (Fair Recovery)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -796,6 +796,31 @@
             onSnapshot(roomRef, (docSnap) => {
                 if (!docSnap.exists()) { alert("Room deleted."); location.reload(); return; }
                 const data = docSnap.data();
+
+                // FIX 6: FAIR DEADLOCK AUTO-FIXER (State Reconstruction)
+                // If game is playing but turn is invalid/missing, Host takes control to fix it fairly
+                if (isHost && data.status === 'playing') {
+                     const validTurn = (data.currentTurn === data.host.uid || data.currentTurn === data.guest.uid);
+                     if (!validTurn) {
+                         console.log("🚑 Game stuck! Reconstructing turn history...");
+                         let nextPlayer = data.host.uid; // Default fallback
+
+                         // Use history to determine whose turn it really is
+                         if (data.moves && data.moves.length > 0) {
+                             const lastMove = data.moves[data.moves.length - 1];
+                             // If Host moved last, it MUST be Guest's turn
+                             if (lastMove.uid === data.host.uid) {
+                                 nextPlayer = data.guest.uid;
+                             } else {
+                                 // If Guest moved last, it MUST be Host's turn
+                                 nextPlayer = data.host.uid;
+                             }
+                         }
+                         
+                         // Apply the fair fix
+                         updateDoc(roomRef, { currentTurn: nextPlayer, lastAction: "Game Recovered" });
+                     }
+                }
                 
                 // If it's my turn, unlock the board
                 if (data.status === 'playing') {
@@ -1052,6 +1077,14 @@
                 const data = snap.data();
                 if (data.currentTurn !== user.uid) { isProcessingTurn = false; return; }
                 const nextTurn = (user.uid === data.host.uid) ? data.guest.uid : data.host.uid;
+                
+                // FIX: Fallback if nextTurn logic fails
+                if (!nextTurn) {
+                    console.error("Next turn user invalid!");
+                    isProcessingTurn = false;
+                    return;
+                }
+
                 const newMove = { uid: user.uid, index: index };
                 setTimeout(() => {
                     updateDoc(roomRef, { moves: arrayUnion(newMove), currentTurn: nextTurn, lastAction: `Shot fired!` })
