@@ -41,6 +41,8 @@
             touch-action: manipulation;
             overflow: hidden;
             user-select: none;
+            /* Prevent tap highlight color on mobile */
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* --- GRID STYLES --- */
@@ -65,6 +67,12 @@
             position: relative;
             transition: all 0.1s;
             overflow: visible; 
+        }
+        /* Visual Feedback for Pressing */
+        .grid-cell:active {
+            transform: scale(0.9);
+            background-color: #00BCD4; /* Darker blue when pressed */
+            border-color: #0097A7;
         }
         .grid-cell.occupied { border-color: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 5px rgba(0,0,0,0.2); }
         .grid-cell.hit { background-color: #EF5350 !important; animation: shake 0.5s; }
@@ -125,7 +133,8 @@
         }
     </style>
 </head>
-<body class="h-[100dvh] flex flex-col text-slate-700 overflow-hidden">
+<!-- FIX: Disable context menu (long press) to prevent confusion -->
+<body class="h-[100dvh] flex flex-col text-slate-700 overflow-hidden" oncontextmenu="return false;">
 
     <div id="fx-layer" class="fixed inset-0 pointer-events-none z-[200] overflow-hidden"></div>
 
@@ -322,7 +331,7 @@
         import { getFirestore, collection, addDoc, doc, onSnapshot, updateDoc, setDoc, getDoc, deleteDoc, arrayUnion, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
         // --- VERSION ---
-        const APP_VERSION = "v1.35 (Fair Recovery)";
+        const APP_VERSION = "v1.36 (Child-Proof)";
         document.getElementById('versionLabel').innerText = APP_VERSION;
 
         // GLOBAL CONSTANT
@@ -503,6 +512,7 @@
         let previousChatLength = 0; // NEW: Track chat length for sound notification
         let lastTurnUid = null; // NEW: Track turn transition for alerts
         let latestSinkTime = 0; // NEW: Track when the last ship was sunk for alert delays
+        let lastEmojiTime = 0; // NEW: Anti-spam for emoji
 
         async function cleanupOldRooms() {
             try {
@@ -927,6 +937,14 @@
         
         window.sendEmoji = async function(btn, emoji) {
             if(!currentRoomId) return;
+            // FIX: Emoji Throttling (0.8s)
+            const now = Date.now();
+            if (now - lastEmojiTime < 800) {
+                console.log("Emoji throttled");
+                return;
+            }
+            lastEmojiTime = now;
+
             initAudio();
             btn.classList.add('bg-blue-300', 'scale-95');
             setTimeout(() => btn.classList.remove('bg-blue-300', 'scale-95'), 150);
